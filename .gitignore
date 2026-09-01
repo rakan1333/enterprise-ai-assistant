@@ -1,0 +1,6 @@
+.env
+vectorstore/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.pdf
