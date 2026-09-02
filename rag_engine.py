@@ -1,5 +1,6 @@
 """محرّك RAG — منفصل تماماً عن الواجهة."""
-
+import time
+from logging_config import get_logger
 import hashlib
 import io
 import os
@@ -14,7 +15,7 @@ from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
-
+log = get_logger(__name__)
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -154,17 +155,19 @@ def document_exists(collection, doc_hash: str) -> bool:
     res = collection.get(where={"doc_hash": doc_hash}, limit=1)
     return len(res["ids"]) > 0
 
-
 def ingest_file(collection, file_bytes: bytes, filename: str) -> dict:
     doc_hash = file_hash(file_bytes)
+    log.info("محاولة رفع: %s (بصمة: %s، حجم: %d بايت)", filename, doc_hash, len(file_bytes))
 
     if document_exists(collection, doc_hash):
+        log.warning("ملف مكرر مرفوض: %s", filename)
         return {"status": "duplicate", "filename": filename, "chunks": 0}
 
     sections = extract_any(file_bytes, filename)
     chunks = chunk_sections(sections)
 
     if not chunks:
+        log.warning("لا يوجد نص قابل للاستخراج: %s", filename)
         return {"status": "empty", "filename": filename, "chunks": 0}
 
     collection.add(
@@ -180,6 +183,7 @@ def ingest_file(collection, file_bytes: bytes, filename: str) -> dict:
         ],
         ids=[f"{doc_hash}_{i}" for i in range(len(chunks))],
     )
+    log.info("تم رفع %s — %d قطعة من %d قسم", filename, len(chunks), len(sections))
     return {"status": "added", "filename": filename, "chunks": len(chunks)}
 
 
@@ -199,9 +203,9 @@ def list_documents(collection) -> dict[str, dict]:
 
 
 # ---------- الاسترجاع والتوليد ----------
-
 def retrieve(collection, question: str) -> list[dict]:
     if collection.count() == 0:
+        log.warning("القاعدة فارغة — لا يمكن الاسترجاع")
         return []
     res = collection.query(query_texts=[question], n_results=TOP_K)
     chunks = [
@@ -210,20 +214,26 @@ def retrieve(collection, question: str) -> list[dict]:
             res["documents"][0], res["metadatas"][0], res["distances"][0]
         )
     ]
-    return [c for c in chunks if c["distance"] <= MAX_DISTANCE]
-
-
+    kept = [c for c in chunks if c["distance"] <= MAX_DISTANCE]
+    log.info(
+        "استرجاع: %d من %d قطعة اجتازت العتبة | أقرب مسافة: %.3f",
+        len(kept), len(chunks), chunks[0]["distance"] if chunks else -1,
+    )
+    return kept
 def build_context(chunks: list[dict]) -> str:
     return "\n\n".join(
         f"[مصدر {i}] (ملف: {c['meta']['source']}، {c['meta'].get('location', '')})\n{c['text']}"
         for i, c in enumerate(chunks, start=1)
     )
 
-
 def ask_rag(collection, question: str) -> dict:
+    start = time.perf_counter()
+    log.info("سؤال جديد: %s", question[:100])
+
     chunks = retrieve(collection, question)
 
     if not chunks:
+        log.info("رُفض السؤال — لا توجد مصادر ذات صلة (%.2f ثانية)", time.perf_counter() - start)
         return {
             "answer": "لا تحتوي المستندات المتاحة على معلومات ذات صلة بهذا السؤال.",
             "sources": [],
@@ -245,10 +255,21 @@ def ask_rag(collection, question: str) -> dict:
         },
         timeout=60,
     )
+
     if r.status_code != 200:
+        log.error("فشل استدعاء النموذج | الحالة: %s | الرد: %s", r.status_code, r.text[:200])
         raise RuntimeError(f"LLM error {r.status_code}: {r.text}")
 
+    data = r.json()
+    usage = data.get("usage", {})
+    log.info(
+        "تمت الإجابة في %.2f ثانية | %d مصدر | %d رمز",
+        time.perf_counter() - start,
+        len(chunks),
+        usage.get("total_tokens", 0),
+    )
+
     return {
-        "answer": r.json()["choices"][0]["message"]["content"],
+        "answer": data["choices"][0]["message"]["content"],
         "sources": chunks,
     }

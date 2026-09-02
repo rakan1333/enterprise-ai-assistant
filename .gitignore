@@ -7,3 +7,4 @@ __pycache__/
 *.docx
 *.xlsx
 debug.py
+logs/

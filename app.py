@@ -3,10 +3,11 @@
 import streamlit as st
 
 import rag_engine as engine
+from logging_config import setup_logging
+
+setup_logging()
 
 st.set_page_config(page_title="المساعد المؤسسي", page_icon="📚", layout="wide")
-
-
 @st.cache_resource
 def load_collection():
     return engine.get_collection()
