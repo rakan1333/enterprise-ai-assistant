@@ -14,14 +14,28 @@ def load_collection():
 
 collection = load_collection()
 
+
+def render_sources(sources: list[dict]) -> None:
+    with st.expander(f"📎 المصادر ({len(sources)})"):
+        for i, s in enumerate(sources, start=1):
+            meta = s["meta"]
+            st.markdown(
+                f"**[مصدر {i}]** `{meta['source']}` — {meta.get('location', '')}  \n"
+                f"<sub>درجة القرب: {s['distance']:.3f}</sub>",
+                unsafe_allow_html=True,
+            )
+            st.text(s["text"])
+            st.divider()
+
+
 # ---------- الشريط الجانبي ----------
 
 with st.sidebar:
     st.header("📁 إدارة المستندات")
 
     uploaded = st.file_uploader(
-        "ارفع ملف PDF",
-        type=["pdf"],
+        "ارفع ملف",
+        type=engine.SUPPORTED_TYPES,
         accept_multiple_files=True,
     )
 
@@ -29,7 +43,7 @@ with st.sidebar:
         for f in uploaded:
             with st.spinner(f"جارٍ معالجة {f.name}..."):
                 try:
-                    result = engine.ingest_pdf(collection, f.getvalue(), f.name)
+                    result = engine.ingest_file(collection, f.getvalue(), f.name)
                 except Exception as e:
                     st.error(f"❌ {f.name}: {e}")
                     continue
@@ -60,6 +74,7 @@ with st.sidebar:
                 st.rerun()
 
     st.divider()
+
     if st.button("🧹 محادثة جديدة"):
         st.session_state.messages = []
         st.rerun()
@@ -77,15 +92,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if msg.get("sources"):
-            with st.expander(f"📎 المصادر ({len(msg['sources'])})"):
-                for i, s in enumerate(msg["sources"], start=1):
-                    st.markdown(
-                        f"**[مصدر {i}]** `{s['meta']['source']}` — صفحة {s['meta']['page']}  \n"
-                        f"<sub>درجة القرب: {s['distance']:.3f}</sub>",
-                        unsafe_allow_html=True,
-                    )
-                    st.text(s["text"])
-                    st.divider()
+            render_sources(msg["sources"])
 
 if prompt := st.chat_input("اكتب سؤالك عن المستندات..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -103,15 +110,7 @@ if prompt := st.chat_input("اكتب سؤالك عن المستندات..."):
         st.markdown(answer)
 
         if sources:
-            with st.expander(f"📎 المصادر ({len(sources)})"):
-                for i, s in enumerate(sources, start=1):
-                    st.markdown(
-                        f"**[مصدر {i}]** `{s['meta']['source']}` — صفحة {s['meta']['page']}  \n"
-                        f"<sub>درجة القرب: {s['distance']:.3f}</sub>",
-                        unsafe_allow_html=True,
-                    )
-                    st.text(s["text"])
-                    st.divider()
+            render_sources(sources)
 
     st.session_state.messages.append(
         {"role": "assistant", "content": answer, "sources": sources}
