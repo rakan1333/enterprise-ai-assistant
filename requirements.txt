@@ -1,0 +1,9 @@
+streamlit
+httpx
+python-dotenv
+chromadb
+sentence-transformers
+pymupdf
+langchain-text-splitters
+python-docx
+openpyxl
