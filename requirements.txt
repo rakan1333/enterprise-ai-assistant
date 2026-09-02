@@ -7,3 +7,6 @@ pymupdf
 langchain-text-splitters
 python-docx
 openpyxl
+fastapi
+uvicorn[standard]
+python-multipart
