@@ -8,3 +8,5 @@ __pycache__/
 *.xlsx
 debug.py
 logs/
+calibrate.py
+debuq.py
