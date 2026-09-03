@@ -87,3 +87,55 @@ def ask(req: AskRequest):
             for s in out["sources"]
         ],
     )
+
+    
+class DocumentInfo(BaseModel):
+    doc_hash: str
+    filename: str
+    chunks: int
+
+
+class UploadResult(BaseModel):
+    filename: str
+    status: str
+    chunks: int
+
+
+@app.get("/documents", response_model=list[DocumentInfo], tags=["المستندات"])
+def list_docs():
+    docs = engine.list_documents(state["collection"])
+    return [
+        DocumentInfo(doc_hash=h, filename=info["filename"], chunks=info["chunks"])
+        for h, info in docs.items()
+    ]
+
+
+@app.post("/documents", response_model=UploadResult, status_code=201, tags=["المستندات"])
+async def upload_doc(file: UploadFile = File(...)):
+    ext = file.filename.rsplit(".", 1)[-1].lower()
+    if ext not in engine.SUPPORTED_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"صيغة غير مدعومة: .{ext} — المدعوم: {engine.SUPPORTED_TYPES}",
+        )
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="الملف فارغ")
+
+    try:
+        result = engine.ingest_file(state["collection"], content, file.filename)
+    except Exception as e:
+        log.exception("فشل رفع الملف %s", file.filename)
+        raise HTTPException(status_code=500, detail=f"فشل معالجة الملف: {e}")
+
+    return UploadResult(**result)
+
+
+@app.delete("/documents/{doc_hash}", status_code=204, tags=["المستندات"])
+def delete_doc(doc_hash: str):
+    col = state["collection"]
+    if not engine.document_exists(col, doc_hash):
+        raise HTTPException(status_code=404, detail="المستند غير موجود")
+    engine.delete_document(col, doc_hash) 
+    
