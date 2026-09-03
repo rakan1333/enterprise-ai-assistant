@@ -24,7 +24,7 @@ COLLECTION_NAME = "company_docs"
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
-MAX_DISTANCE = 0.55
+MAX_DISTANCE = 0.60
 TOP_K = 3
 
 SYSTEM_PROMPT = """أنت مساعد مؤسسي. أجب على السؤال بالاعتماد على السياق المرفق فقط.
@@ -59,23 +59,43 @@ def extract_pdf(file_bytes: bytes) -> list[tuple[int, str, str]]:
     out = [(i + 1, f"صفحة {i + 1}", page.get_text()) for i, page in enumerate(doc)]
     doc.close()
     return out
-
-
 def extract_docx(file_bytes: bytes) -> list[tuple[int, str, str]]:
+    """يقسّم المستند حسب العناوين، فيصبح لكل قسم موقع مميز."""
     d = docx.Document(io.BytesIO(file_bytes))
 
-    parts = [p.text for p in d.paragraphs if p.text.strip()]
+    sections = []
+    current_title = "المقدمة"
+    current_parts = []
+
+    for p in d.paragraphs:
+        text = p.text.strip()
+        if not text:
+            continue
+        style_name = p.style.name if p.style else ""
+        if style_name.startswith("Heading") or style_name == "Title":
+            if current_parts:
+                sections.append((current_title, "\n".join(current_parts)))
+            current_title = text
+            current_parts = []
+        else:
+            current_parts.append(text)
+
+    if current_parts:
+        sections.append((current_title, "\n".join(current_parts)))
 
     for t_idx, table in enumerate(d.tables, start=1):
         rows = [
             " | ".join(cell.text.strip() for cell in row.cells)
             for row in table.rows
         ]
-        parts.append(f"[جدول {t_idx}]\n" + "\n".join(rows))
+        sections.append((f"جدول {t_idx}", "\n".join(rows)))
 
-    full_text = "\n".join(parts)
-    return [(1, "المستند", full_text)] if full_text.strip() else []
-
+    return [
+        (i, f"قسم: {title}", text)
+        for i, (title, text) in enumerate(sections, start=1)
+        if text.strip()
+    
+    ]
 
 def extract_xlsx(file_bytes: bytes) -> list[tuple[int, str, str]]:
     """كل صف قطعة مستقلة. يتوقف عند أول عمود فارغ في صف العناوين."""
