@@ -1,27 +1,20 @@
-"""واجهة المساعد المؤسسي."""
+"""واجهة المساعد المؤسسي — تتصل بخدمة REST."""
 
 import streamlit as st
 
-import rag_engine as engine
+import api_client as api
 from logging_config import setup_logging
 
 setup_logging()
 
 st.set_page_config(page_title="المساعد المؤسسي", page_icon="📚", layout="wide")
-@st.cache_resource
-def load_collection():
-    return engine.get_collection()
-
-
-collection = load_collection()
 
 
 def render_sources(sources: list[dict]) -> None:
     with st.expander(f"📎 المصادر ({len(sources)})"):
         for i, s in enumerate(sources, start=1):
-            meta = s["meta"]
             st.markdown(
-                f"**[مصدر {i}]** `{meta['source']}` — {meta.get('location', '')}  \n"
+                f"**[مصدر {i}]** `{s['filename']}` — {s['location']}  \n"
                 f"<sub>درجة القرب: {s['distance']:.3f}</sub>",
                 unsafe_allow_html=True,
             )
@@ -29,14 +22,28 @@ def render_sources(sources: list[dict]) -> None:
             st.divider()
 
 
+# ---------- فحص الاتصال ----------
+
+try:
+    status = api.health()
+except Exception:
+    st.error(
+        "⚠️ تعذّر الاتصال بالخدمة.\n\n"
+        "شغّل الخادم أولاً في نافذة منفصلة:\n\n"
+        "`uvicorn api:app --reload`"
+    )
+    st.stop()
+
+
 # ---------- الشريط الجانبي ----------
 
 with st.sidebar:
     st.header("📁 إدارة المستندات")
+    st.caption(f"متصل بالخدمة — {status['chunks']} قطعة")
 
     uploaded = st.file_uploader(
         "ارفع ملف",
-        type=engine.SUPPORTED_TYPES,
+        type=["pdf", "docx", "xlsx"],
         accept_multiple_files=True,
     )
 
@@ -44,8 +51,8 @@ with st.sidebar:
         for f in uploaded:
             with st.spinner(f"جارٍ معالجة {f.name}..."):
                 try:
-                    result = engine.ingest_file(collection, f.getvalue(), f.name)
-                except Exception as e:
+                    result = api.upload_document(f.name, f.getvalue())
+                except api.APIError as e:
                     st.error(f"❌ {f.name}: {e}")
                     continue
 
@@ -60,18 +67,18 @@ with st.sidebar:
 
     st.divider()
 
-    docs = engine.list_documents(collection)
+    docs = api.list_documents()
     st.subheader(f"المستندات المخزّنة ({len(docs)})")
 
     if not docs:
         st.caption("لا توجد مستندات بعد.")
     else:
-        for doc_hash, info in docs.items():
+        for d in docs:
             col1, col2 = st.columns([4, 1])
-            col1.write(f"📄 {info['filename']}")
-            col1.caption(f"{info['chunks']} قطعة")
-            if col2.button("🗑️", key=doc_hash):
-                engine.delete_document(collection, doc_hash)
+            col1.write(f"📄 {d['filename']}")
+            col1.caption(f"{d['chunks']} قطعة")
+            if col2.button("🗑️", key=d["doc_hash"]):
+                api.delete_document(d["doc_hash"])
                 st.rerun()
 
     st.divider()
@@ -103,10 +110,12 @@ if prompt := st.chat_input("اكتب سؤالك عن المستندات..."):
     with st.chat_message("assistant"):
         with st.spinner("جارٍ البحث في المستندات..."):
             try:
-                out = engine.ask_rag(collection, prompt)
+                out = api.ask(prompt)
                 answer, sources = out["answer"], out["sources"]
+            except api.APIError as e:
+                answer, sources = f"⚠️ {e}", []
             except Exception as e:
-                answer, sources = f"⚠️ حدث خطأ: {e}", []
+                answer, sources = f"⚠️ تعذّر الاتصال بالخدمة: {e}", []
 
         st.markdown(answer)
 
