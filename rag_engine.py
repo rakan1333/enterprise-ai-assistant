@@ -18,13 +18,13 @@ load_dotenv()
 log = get_logger(__name__)
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
-EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+EMBED_MODEL = "intfloat/multilingual-e5-base"
 VECTORSTORE_PATH = "./vectorstore"
 COLLECTION_NAME = "company_docs"
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
-MAX_DISTANCE = 0.60
+MAX_DISTANCE = 0.178
 TOP_K = 3
 
 SYSTEM_PROMPT = """أنت مساعد مؤسسي. أجب على السؤال بالاعتماد على السياق المرفق فقط.
