@@ -6,6 +6,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 import agent
+import guardrails
 import rag_engine as engine
 from logging_config import get_logger, setup_logging
 
@@ -114,9 +115,14 @@ def ask(req: AskRequest):
         ],
     )
 
-
 @app.post("/agent", response_model=AgentResponse, tags=["الوكيل"])
 def agent_ask(req: AskRequest):
+    try:
+        guardrails.check_question(req.question)
+    except guardrails.GuardrailViolation as e:
+        log.warning("رُفض سؤال عند البوابة: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
+
     try:
         out = agent.run_agent(state["collection"], req.question)
     except Exception as e:
@@ -128,7 +134,6 @@ def agent_ask(req: AskRequest):
         steps=[AgentStep(tool=t["tool"], args=t["args"]) for t in out["trace"]],
         sources=out["sources"],
     )
-
 
 # ---------- المستندات ----------
 

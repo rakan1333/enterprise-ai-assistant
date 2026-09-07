@@ -2,6 +2,7 @@
 
 import json
 import os
+import guardrails
 
 import httpx
 from dotenv import load_dotenv
@@ -134,13 +135,24 @@ def _search_documents(collection, query: str) -> dict:
 
     if not chunks:
         return {"found": False, "message": "لا توجد مقاطع ذات صلة في المستندات."}
+       top = chunks[:3]
     return {
         "found": True,
         "results": [
             {
                 "source": c["meta"]["source"],
                 "location": c["meta"].get("location", ""),
-                "text": c["text"],
+                "text": guardrails.sanitize_context(c["text"]),
+            }
+            for c in top
+        ],
+    } return {
+        "found": True,
+        "results": [
+            {
+                "source": c["meta"]["source"],
+                "location": c["meta"].get("location", ""),
+                "text": guardrails.sanitize_context(c["text"]),
             }
             for c in chunks
         ],
@@ -208,9 +220,13 @@ def run_agent(collection, question: str) -> dict:
             log.info("الوكيل يستدعي: %s | %s", name, args)
 
             try:
+                guardrails.check_tool_args(name, args)
                 result = _execute_tool(collection, name, args)
                 if name == "search_documents" and result.get("found"):
                     sources.extend(result["results"])
+            except guardrails.GuardrailViolation as e:
+                log.warning("رُفض استدعاء الأداة %s: %s", name, e)
+                result = {"error": str(e)}
             except TypeError as e:
                 log.warning("معاملات خاطئة للأداة %s: %s", name, e)
                 result = {"error": f"معاملات غير صحيحة: {e}"}
