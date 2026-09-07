@@ -13,13 +13,17 @@ st.set_page_config(page_title="المساعد المؤسسي", page_icon="📚",
 def render_sources(sources: list[dict]) -> None:
     with st.expander(f"📎 المصادر ({len(sources)})"):
         for i, s in enumerate(sources, start=1):
-            st.markdown(
-                f"**[مصدر {i}]** `{s['filename']}` — {s['location']}  \n"
-                f"<sub>درجة القرب: {s['distance']:.3f}</sub>",
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"**[مصدر {i}]** `{s['source']}` — {s.get('location', '')}")
             st.text(s["text"])
             st.divider()
+
+
+def render_steps(steps: list[dict]) -> None:
+    with st.expander(f"🔧 الأدوات المستخدمة ({len(steps)})"):
+        for i, s in enumerate(steps, start=1):
+            st.markdown(f"**{i}.** `{s['tool']}`")
+            if s.get("args"):
+                st.json(s["args"])
 
 
 # ---------- فحص الاتصال ----------
@@ -38,8 +42,17 @@ except Exception:
 # ---------- الشريط الجانبي ----------
 
 with st.sidebar:
-    st.header("📁 إدارة المستندات")
+    st.header("⚙️ الإعدادات")
     st.caption(f"متصل بالخدمة — {status['chunks']} قطعة")
+
+    mode = st.radio(
+        "وضع الإجابة",
+        options=["الوكيل", "بحث المستندات"],
+        help="الوكيل يختار بين المستندات وقاعدة البيانات. البحث يقتصر على المستندات.",
+    )
+
+    st.divider()
+    st.header("📁 إدارة المستندات")
 
     uploaded = st.file_uploader(
         "ارفع ملف",
@@ -91,7 +104,7 @@ with st.sidebar:
 # ---------- المحادثة ----------
 
 st.title("📚 المساعد المؤسسي الذكي")
-st.caption("يجيب من مستنداتك فقط، مع ذكر المصادر.")
+st.caption("يجيب من مستنداتك وبياناتك، مع إظهار المصدر والأدوات المستخدمة.")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -99,29 +112,39 @@ if "messages" not in st.session_state:
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        if msg.get("steps"):
+            render_steps(msg["steps"])
         if msg.get("sources"):
             render_sources(msg["sources"])
 
-if prompt := st.chat_input("اكتب سؤالك عن المستندات..."):
+if prompt := st.chat_input("اكتب سؤالك..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("جارٍ البحث في المستندات..."):
+        with st.spinner("جارٍ العمل..."):
             try:
-                out = api.ask(prompt)
-                answer, sources = out["answer"], out["sources"]
+                if mode == "الوكيل":
+                    out = api.ask_agent(prompt)
+                    steps = out.get("steps", [])
+                else:
+                    out = api.ask(prompt)
+                    steps = []
+                answer = out["answer"]
+                sources = out.get("sources", [])
             except api.APIError as e:
-                answer, sources = f"⚠️ {e}", []
+                answer, sources, steps = f"⚠️ {e}", [], []
             except Exception as e:
-                answer, sources = f"⚠️ تعذّر الاتصال بالخدمة: {e}", []
+                answer, sources, steps = f"⚠️ تعذّر الاتصال: {e}", [], []
 
         st.markdown(answer)
 
+        if steps:
+            render_steps(steps)
         if sources:
             render_sources(sources)
 
     st.session_state.messages.append(
-        {"role": "assistant", "content": answer, "sources": sources}
+        {"role": "assistant", "content": answer, "sources": sources, "steps": steps}
     )

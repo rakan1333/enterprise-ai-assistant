@@ -28,12 +28,18 @@ def _handle(r: httpx.Response) -> dict | list | None:
 
 
 def health() -> dict:
-    return _handle(httpx.get(f"{BASE_URL}/health", timeout=10))
+    return _handle(httpx.get(f"{BASE_URL}/health", timeout=30))
 
 
 def ask(question: str) -> dict:
     return _handle(
         httpx.post(f"{BASE_URL}/ask", json={"question": question}, timeout=TIMEOUT)
+    )
+
+
+def ask_agent(question: str) -> dict:
+    return _handle(
+        httpx.post(f"{BASE_URL}/agent", json={"question": question}, timeout=TIMEOUT)
     )
 
 

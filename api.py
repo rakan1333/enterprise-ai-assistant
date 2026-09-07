@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+import agent
 import rag_engine as engine
 from logging_config import get_logger, setup_logging
 
@@ -55,7 +56,30 @@ class HealthResponse(BaseModel):
     documents: int
 
 
-# ---------- النقاط ----------
+class DocumentInfo(BaseModel):
+    doc_hash: str
+    filename: str
+    chunks: int
+
+
+class UploadResult(BaseModel):
+    filename: str
+    status: str
+    chunks: int
+
+
+class AgentStep(BaseModel):
+    tool: str
+    args: dict
+
+
+class AgentResponse(BaseModel):
+    answer: str
+    steps: list[AgentStep]
+    sources: list[dict]
+
+
+# ---------- النظام ----------
 
 @app.get("/health", response_model=HealthResponse, tags=["النظام"])
 def health():
@@ -66,6 +90,8 @@ def health():
         documents=len(engine.list_documents(col)),
     )
 
+
+# ---------- الأسئلة ----------
 
 @app.post("/ask", response_model=AskResponse, tags=["الأسئلة"])
 def ask(req: AskRequest):
@@ -88,18 +114,23 @@ def ask(req: AskRequest):
         ],
     )
 
-    
-class DocumentInfo(BaseModel):
-    doc_hash: str
-    filename: str
-    chunks: int
+
+@app.post("/agent", response_model=AgentResponse, tags=["الوكيل"])
+def agent_ask(req: AskRequest):
+    try:
+        out = agent.run_agent(state["collection"], req.question)
+    except Exception as e:
+        log.exception("فشل تشغيل الوكيل")
+        raise HTTPException(status_code=502, detail=f"فشل الوكيل: {e}")
+
+    return AgentResponse(
+        answer=out["answer"],
+        steps=[AgentStep(tool=t["tool"], args=t["args"]) for t in out["trace"]],
+        sources=out["sources"],
+    )
 
 
-class UploadResult(BaseModel):
-    filename: str
-    status: str
-    chunks: int
-
+# ---------- المستندات ----------
 
 @app.get("/documents", response_model=list[DocumentInfo], tags=["المستندات"])
 def list_docs():
@@ -132,10 +163,14 @@ async def upload_doc(file: UploadFile = File(...)):
     return UploadResult(**result)
 
 
-@app.delete("/documents/{doc_hash}", status_code=204, tags=["المستندات"])
+@app.delete(
+    "/documents/{doc_hash}",
+    status_code=204,
+    responses={404: {"description": "المستند غير موجود"}},
+    tags=["المستندات"],
+)
 def delete_doc(doc_hash: str):
     col = state["collection"]
     if not engine.document_exists(col, doc_hash):
         raise HTTPException(status_code=404, detail="المستند غير موجود")
-    engine.delete_document(col, doc_hash) 
-    
+    engine.delete_document(col, doc_hash)
