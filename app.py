@@ -9,6 +9,37 @@ setup_logging()
 
 st.set_page_config(page_title="المساعد المؤسسي", page_icon="📚", layout="wide")
 
+st.markdown("""
+<style>
+    .stApp { direction: rtl; }
+
+    section[data-testid="stSidebar"] {
+        direction: rtl;
+        text-align: right;
+    }
+
+    .stMarkdown, .stCaption, p, li, label, h1, h2, h3, h4 {
+        text-align: right;
+    }
+
+    .stChatMessage { direction: rtl; text-align: right; }
+
+    .stTextInput input,
+    .stTextArea textarea,
+    [data-testid="stChatInput"] textarea {
+        direction: rtl;
+        text-align: right;
+    }
+
+    section[data-testid="stSidebar"] .stButton button { width: 100%; }
+    [data-testid="column"] .stButton button { width: auto; min-width: 44px; }
+
+    code, pre, .stJson { direction: ltr; text-align: left; }
+
+    [data-testid="stExpander"] summary { flex-direction: row-reverse; }
+</style>
+""", unsafe_allow_html=True)
+
 
 def render_sources(sources: list[dict]) -> None:
     with st.expander(f"📎 المصادر ({len(sources)})"):
@@ -87,12 +118,14 @@ with st.sidebar:
         st.caption("لا توجد مستندات بعد.")
     else:
         for d in docs:
-            col1, col2 = st.columns([4, 1])
-            col1.write(f"📄 {d['filename']}")
-            col1.caption(f"{d['chunks']} قطعة")
-            if col2.button("🗑️", key=d["doc_hash"]):
-                api.delete_document(d["doc_hash"])
-                st.rerun()
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                st.markdown(f"📄 **{d['filename']}**")
+                st.caption(f"{d['chunks']} قطعة")
+            with col2:
+                if st.button("🗑️", key=d["doc_hash"], help="حذف"):
+                    api.delete_document(d["doc_hash"])
+                    st.rerun()
 
     st.divider()
 
