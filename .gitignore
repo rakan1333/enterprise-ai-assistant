@@ -10,3 +10,6 @@ debug.py
 logs/
 calibrate.py
 debuq.py
+.pytest_cache/
+.pytest_cache/
+__pycache__/
