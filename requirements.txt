@@ -10,3 +10,4 @@ openpyxl
 fastapi
 uvicorn[standard]
 python-multipart
+pytest

@@ -23,11 +23,12 @@ DEPARTMENTS = [
 ]
 
 
-def build() -> None:
-    if DB_PATH.exists():
-        DB_PATH.unlink()
+def build(path=DB_PATH) -> None:
+    p = Path(path)
+    if p.exists():
+        p.unlink()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(p)
     cur = conn.cursor()
 
     cur.execute("""
