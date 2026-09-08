@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>المساعد المؤسسي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@200;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #07080b;
+    --panel:     linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
+    --surface:   rgba(255,255,255,.035);
+    --surface-2: rgba(255,255,255,.022);
+    --border:    rgba(255,255,255,.065);
+    --border-2:  rgba(255,255,255,.16);
+    --text:      #e9ecf4;
+    --strong:    #f4f6fb;
+    --muted:     #8b93a7;
+    --dim:       #5c6479;
+    --purple:    #8b7cff;
+    --green:     #5fd0a8;
+    --red:       #ff8f8f;
+    --input-bg:  rgba(13,14,20,.92);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: Manrope, system-ui, sans-serif;
+  }
+
+  [data-theme="light"] {
+    --bg:        #f6f7fb;
+    --panel:     linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6));
+    --surface:   rgba(20,22,29,.035);
+    --surface-2: rgba(20,22,29,.025);
+    --border:    rgba(20,22,29,.10);
+    --border-2:  rgba(20,22,29,.22);
+    --text:      #1b1e27;
+    --strong:    #0d0f15;
+    --muted:     #5a6273;
+    --dim:       #858da0;
+    --purple:    #6a56e8;
+    --green:     #1f9d72;
+    --red:       #d0463f;
+    --input-bg:  rgba(255,255,255,.94);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    transition: background .3s, color .3s;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 20px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  button, input, textarea { font-family: var(--sans); }
+
+  @keyframes breathe { 0%,100% { transform:scale(1); opacity:.92; } 50% { transform:scale(1.055); opacity:1; } }
+  @keyframes halo    { to { transform: rotate(360deg); } }
+  @keyframes rise    { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes dots    { 0%,80%,100% { opacity:.2; transform:translateY(0); } 40% { opacity:1; transform:translateY(-3px); } }
+
+  /* ---------- التخطيط ---------- */
+
+  #shell {
+    display: flex; height: 100vh;
+    background:
+      radial-gradient(1100px 620px at 82% -10%, rgba(110,96,255,.13), transparent 62%),
+      radial-gradient(900px 520px at 12% 8%, rgba(64,190,214,.09), transparent 60%),
+      var(--bg);
+  }
+
+  aside {
+    width: 296px; flex: none;
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    backdrop-filter: blur(20px);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* ---------- الشريط الجانبي ---------- */
+
+  .brand { padding: 18px 16px 12px; display: flex; align-items: center; gap: 11px; }
+  .brand .mark {
+    width: 30px; height: 30px; flex: none; border-radius: 10px;
+    background: conic-gradient(from 140deg, #6f5cff, #46c7e8, #a78bff, #6f5cff);
+    display: grid; place-items: center;
+  }
+  .brand .mark span { width: 11px; height: 11px; border-radius: 4px; background: var(--bg); }
+  .brand .name { font: 700 15px/1 var(--sans); letter-spacing: .04em; }
+  .brand .sub  { font: 400 10px/1 var(--mono); color: var(--dim); margin-top: 3px; }
+  .brand .theme {
+    margin-right: auto; width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 14px;
+  }
+  .brand .theme:hover { color: var(--text); border-color: var(--border-2); }
+
+  .side-body { flex: 1; overflow-y: auto; padding: 0 15px 14px; }
+
+  .label {
+    display: flex; align-items: center; gap: 7px;
+    font: 500 10px/1 var(--mono); letter-spacing: .12em;
+    color: var(--dim); margin: 17px 0 9px;
+  }
+  .label .n { margin-right: auto; opacity: .7; }
+
+  .seg { display: flex; gap: 5px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; padding: 4px; }
+  .seg button {
+    flex: 1; padding: 9px 8px; border: 0; border-radius: 8px; cursor: pointer;
+    background: transparent; color: var(--muted); font: 500 12px/1 var(--sans);
+    transition: background .2s, color .2s;
+  }
+  .seg button.on { background: rgba(126,104,255,.18); color: var(--purple); }
+
+  .drop {
+    border: 1px dashed rgba(139,124,255,.34); border-radius: 12px;
+    background: rgba(126,104,255,.05);
+    padding: 16px 12px; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .drop:hover, .drop.over { border-color: var(--purple); background: rgba(126,104,255,.12); }
+  .drop .big  { font: 400 17px/1 var(--mono); color: var(--purple); }
+  .drop .cap  { font: 400 12px/1.6 var(--sans); color: var(--muted); margin-top: 6px; }
+  .drop .hint { font: 400 10px/1 var(--mono); color: var(--dim); margin-top: 4px; }
+
+  .search {
+    width: 100%; padding: 9px 11px; margin-bottom: 9px;
+    border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2);
+    color: var(--text); font: 400 12.5px/1 var(--sans); outline: none; direction: rtl;
+  }
+  .search:focus { border-color: rgba(139,124,255,.5); }
+
+  .doc {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 11px; margin-bottom: 6px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
+  }
+  .doc .kind {
+    font: 500 9.5px/1 var(--mono); color: var(--purple);
+    border: 1px solid rgba(139,124,255,.28); border-radius: 5px; padding: 5px 6px; flex: none;
+  }
+  .doc .meta { flex: 1; min-width: 0; }
+  .doc .fname { font: 500 12px/1.35 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .doc .chunks { font: 400 10px/1 var(--mono); color: var(--dim); margin-top: 4px; }
+  .doc .del { background: transparent; border: 0; color: var(--dim); font-size: 13px; cursor: pointer; padding: 4px; border-radius: 6px; flex: none; }
+  .doc .del:hover { color: var(--red); background: rgba(255,143,143,.12); }
+
+  .empty { font: 400 12px/1.7 var(--sans); color: var(--dim); padding: 4px 2px; }
+
+  .hist {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 9px 10px; margin-bottom: 4px; cursor: pointer; text-align: right;
+    border: 1px solid transparent; border-radius: 9px; background: transparent;
+    color: var(--muted); font: 400 12.5px/1.4 var(--sans);
+  }
+  .hist:hover { background: var(--surface); color: var(--text); }
+  .hist.on { border-color: rgba(139,124,255,.28); background: rgba(126,104,255,.10); color: var(--text); }
+  .hist .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist .x { background: transparent; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 2px; }
+  .hist .x:hover { color: var(--red); }
+
+  .side-foot { border-top: 1px solid var(--border); padding: 12px 15px; display: flex; flex-direction: column; gap: 8px; }
+
+  .ghost {
+    width: 100%; padding: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 10px; background: transparent;
+    color: var(--muted); font: 500 12.5px/1 var(--sans); transition: color .2s, border-color .2s;
+  }
+  .ghost:hover { color: var(--text); border-color: var(--border-2); }
+
+  .status { display: flex; align-items: center; gap: 7px; font: 400 10.5px/1 var(--mono); color: var(--dim); }
+  .status i { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); }
+  .status.ok i  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status.bad i { background: var(--red); }
+
+  /* ---------- المحادثة ---------- */
+
+  #scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+  .welcome { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 34px; padding: 48px 40px 24px; }
+  .orb { position: relative; width: 118px; height: 118px; display: grid; place-items: center; }
+  .orb .glow { position: absolute; inset: -34px; border-radius: 50%; background: radial-gradient(circle, rgba(122,102,255,.20), transparent 66%); filter: blur(14px); animation: breathe 6.5s ease-in-out infinite; }
+  .orb .ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(122,102,255,.65), rgba(70,199,232,.35), rgba(167,139,255,.6), rgba(122,102,255,.65)); filter: blur(9px); animation: halo 18s linear infinite; }
+  .orb .core { position: relative; width: 86px; height: 86px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.92), rgba(160,146,255,.55) 34%, rgba(46,42,86,.9) 68%, #0a0b10 100%); box-shadow: 0 24px 60px -18px rgba(110,96,255,.7); animation: breathe 5.5s ease-in-out infinite; }
+
+  .welcome h1 { margin: 0; font-weight: 200; font-size: clamp(25px, 3.6vw, 40px); line-height: 1.2; letter-spacing: -.02em; color: var(--strong); text-align: center; }
+  .welcome p { margin: 11px 0 0; font: 400 15px/1.75 var(--sans); color: var(--muted); text-align: center; max-width: 470px; }
+
+  .suggest { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 10px; width: 100%; max-width: 750px; }
+  .suggest button {
+    text-align: right; padding: 15px 16px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 13px; background: var(--surface);
+    color: var(--text); font: 500 13.5px/1.55 var(--sans);
+    transition: transform .22s, border-color .22s, box-shadow .22s;
+  }
+  .suggest button:hover { transform: translateY(-3px); border-color: rgba(139,124,255,.45); box-shadow: 0 18px 40px -22px rgba(122,102,255,.9); }
+  .suggest .tag { display: block; font: 500 9.5px/1 var(--mono); letter-spacing: .1em; color: var(--purple); margin-bottom: 8px; }
+
+  .thread { padding: 28px 40px 8px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  .turn { width: 100%; max-width: 780px; display: flex; flex-direction: column; gap: 8px; animation: rise .45s ease both; }
+  .turn.user { align-items: flex-start; }
+
+  .bubble {
+    max-width: 78%; padding: 13px 17px; border-radius: 16px 4px 16px 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    font: 400 14.5px/1.8 var(--sans); white-space: pre-wrap;
+  }
+  .who { display: flex; align-items: center; gap: 9px; }
+  .who .dot { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.9), rgba(150,136,255,.6) 40%, rgba(24,22,48,1) 100%); box-shadow: 0 0 18px -4px rgba(122,102,255,.8); }
+  .who .nm { font: 600 12.5px/1 var(--sans); }
+  .who .ts { font: 400 10px/1 var(--mono); color: var(--dim); }
+
+  .answer { font: 400 15px/1.9 var(--sans); white-space: pre-wrap; }
+
+  .typing { display: flex; gap: 4px; padding: 6px 0; }
+  .typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--purple); animation: dots 1.3s infinite; }
+  .typing i:nth-child(2) { animation-delay: .18s; }
+  .typing i:nth-child(3) { animation-delay: .36s; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip { font: 400 10.5px/1.5 var(--mono); border-radius: 7px; padding: 6px 10px; white-space: nowrap; color: var(--green); border: 1px solid rgba(95,208,168,.28); }
+
+  .acts { display: flex; gap: 6px; margin-top: 4px; }
+  .acts button {
+    padding: 7px 11px; cursor: pointer; border-radius: 8px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--dim); font: 400 11.5px/1 var(--sans); transition: color .2s, border-color .2s;
+  }
+  .acts button:hover { color: var(--text); border-color: var(--border-2); }
+
+  .srcs { margin-top: 4px; }
+  .srcs > summary {
+    cursor: pointer; list-style: none;
+    font: 500 10.5px/1 var(--mono); letter-spacing: .08em; color: var(--dim); padding: 7px 0;
+  }
+  .srcs > summary::-webkit-details-marker { display: none; }
+  .srcs > summary:hover { color: var(--muted); }
+
+  .src { border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); margin-top: 8px; overflow: hidden; }
+  .src > summary { cursor: pointer; list-style: none; padding: 11px 13px; display: flex; align-items: center; gap: 9px; }
+  .src > summary::-webkit-details-marker { display: none; }
+  .src > summary:hover { background: var(--surface); }
+  .src .n { font: 500 10px/1 var(--mono); color: var(--purple); border: 1px solid rgba(139,124,255,.3); border-radius: 5px; padding: 4px 6px; }
+  .src .f { font: 500 12px/1.4 var(--sans); }
+  .src .l { font: 400 10.5px/1 var(--mono); color: var(--dim); margin-right: auto; }
+  .src .t { font: 400 12.5px/1.8 var(--sans); color: var(--muted); white-space: pre-wrap; padding: 0 13px 13px; }
+
+  /* ---------- الإدخال ---------- */
+
+  .composer { padding: 12px 40px 20px; display: flex; justify-content: center; }
+  .composer .frame {
+    width: 100%; max-width: 780px; border-radius: 19px; padding: 1px;
+    background: linear-gradient(140deg, rgba(139,124,255,.55), rgba(92,198,230,.28) 45%, rgba(255,255,255,.06) 75%);
+    box-shadow: 0 26px 60px -30px rgba(112,96,255,.6);
+  }
+  .composer .inner { border-radius: 18px; background: var(--input-bg); backdrop-filter: blur(22px); padding: 13px 15px 10px; display: flex; flex-direction: column; gap: 10px; }
+  .composer textarea { width: 100%; resize: none; background: transparent; border: 0; outline: none; color: var(--text); font: 400 15px/1.7 var(--sans); max-height: 160px; direction: rtl; text-align: right; }
+  .composer .row { display: flex; align-items: center; gap: 8px; }
+  .composer .mode { font: 400 11px/1 var(--mono); color: var(--dim); }
+  .send { width: 34px; height: 34px; border-radius: 11px; border: 0; cursor: pointer; background: linear-gradient(160deg, #8b7cff, #5a4ad4); color: #fff; font: 600 15px/1 var(--mono); box-shadow: 0 10px 26px -12px rgba(139,124,255,1); transition: opacity .2s; }
+  .send:disabled { opacity: .4; cursor: default; }
+  .foot { display: block; text-align: center; font: 400 10.5px/1.6 var(--mono); color: var(--dim); padding-bottom: 12px; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 20px; z-index: 90;
+    padding: 12px 16px; border-radius: 11px; font: 500 12.5px/1.5 var(--sans);
+    border: 1px solid var(--border); background: var(--input-bg); backdrop-filter: blur(18px);
+    animation: rise .3s ease both;
+  }
+  .toast.ok  { border-color: rgba(95,208,168,.45); color: var(--green); }
+  .toast.err { border-color: rgba(255,143,143,.45); color: var(--red); }
+
+  code, pre { direction: ltr; text-align: left; font-family: var(--mono); }
+
+  @media (max-width: 900px) {
+    aside { display: none; }
+    .thread, .composer { padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="shell">
+
+  <aside>
+    <div class="brand">
+      <div class="mark"><span></span></div>
+      <div>
+        <div class="name">المساعد المؤسسي</div>
+        <div class="sub">RAG · AGENT</div>
+      </div>
+      <button class="theme" id="theme" title="تبديل المظهر">☾</button>
+    </div>
+
+    <div class="side-body">
+      <span class="label">وضع الإجابة</span>
+      <div class="seg">
+        <button id="mAgent" class="on">الوكيل</button>
+        <button id="mDocs">المستندات</button>
+      </div>
+
+      <span class="label">المحادثات <span class="n" id="histCount"></span></span>
+      <div id="hist"><div class="empty">لا محادثات محفوظة.</div></div>
+
+      <span class="label">رفع مستند</span>
+      <div class="drop" id="drop">
+        <div class="big">＋</div>
+        <div class="cap">اسحب ملفاً أو اضغط للاختيار</div>
+        <div class="hint">PDF · DOCX · XLSX</div>
+      </div>
+      <input type="file" id="file" multiple accept=".pdf,.docx,.xlsx" hidden>
+
+      <span class="label">المستندات <span class="n" id="docCount"></span></span>
+      <input class="search" id="docSearch" placeholder="ابحث في المستندات…">
+      <div id="docs"><div class="empty">لا توجد مستندات بعد.</div></div>
+    </div>
+
+    <div class="side-foot">
+      <button class="ghost" id="newChat">محادثة جديدة</button>
+      <button class="ghost" id="export">تصدير المحادثة</button>
+      <div class="status" id="status"><i></i><span>جارٍ الاتصال…</span></div>
+    </div>
+  </aside>
+
+  <main>
+    <div id="scroll">
+      <div class="welcome" id="welcome">
+        <div class="orb"><span class="glow"></span><span class="ring"></span><span class="core"></span></div>
+        <div>
+          <h1>كيف أقدر أساعدك؟</h1>
+          <p>أجيب من مستندات شركتك وقواعد بياناتها، مع ذكر المصدر.</p>
+        </div>
+        <div class="suggest" id="suggest"></div>
+      </div>
+      <div class="thread" id="thread" hidden></div>
+    </div>
+
+    <div class="composer">
+      <div class="frame">
+        <div class="inner">
+          <textarea id="input" rows="1" placeholder="اكتب سؤالك…"></textarea>
+          <div class="row">
+            <span class="mode" id="modeHint">الوكيل — يختار بين المستندات وقاعدة البيانات</span>
+            <div style="flex:1"></div>
+            <button class="send" id="send">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="foot">قد يخطئ المساعد — تحقّق من الأرقام في المصدر.</span>
+  </main>
+
+</div>
+
+<script>
+const API = window.API_BASE || "http://localhost:8000";
+
+const SUGGESTIONS = [
+  ["سياسات",   "ما شروط العمل عن بعد؟"],
+  ["موظفين",   "كم رصيد الإجازة لخالد الدوسري؟"],
+  ["إجماليات", "كم إجمالي بدل الانتقال لكل الأقسام؟"],
+  ["إجازات",   "كم يوماً إجازة أمومة؟"],
+];
+
+const el = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+const now = () => new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+const ext = n => (String(n).split(".").pop() || "").toUpperCase().slice(0, 4);
+
+/* ---------- التخزين ---------- */
+/* localStorage قد يُحجب داخل iframe — نتراجع للذاكرة بهدوء */
+
+const store = {
+  mem: {},
+  get(k, fallback) {
+    try { const v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); }
+    catch { return k in this.mem ? this.mem[k] : fallback; }
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); }
+    catch { this.mem[k] = v; }
+  },
+};
+
+/* ---------- الحالة ---------- */
+
+const state = {
+  mode: "agent",
+  busy: false,
+  docs: [],
+  docFilter: "",
+  sessions: store.get("sessions", []),
+  currentId: null,
+};
+
+const current = () => state.sessions.find(s => s.id === state.currentId) || null;
+
+function saveSessions() { store.set("sessions", state.sessions.slice(0, 40)); }
+
+function newSession() {
+  const s = { id: Date.now().toString(36), title: "محادثة جديدة", ts: Date.now(), messages: [] };
+  state.sessions.unshift(s);
+  state.currentId = s.id;
+  saveSessions();
+  return s;
+}
+
+/* ---------- أدوات ---------- */
+
+function toast(msg, kind) {
+  const t = document.createElement("div");
+  t.className = "toast " + (kind || "ok");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+function scrollDown() {
+  const s = el("scroll");
+  s.scrollTop = s.scrollHeight;
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("تم النسخ");
+    return;
+  } catch (e) { /* المتصفح قد يمنع الحافظة داخل iframe */ }
+
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); toast("تم النسخ"); }
+  catch (e) { toast("تعذّر النسخ", "err"); }
+  ta.remove();
+}
+
+function download(name, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+/* ---------- الحالة والمستندات ---------- */
+
+async function refreshStatus() {
+  const box = el("status");
+  try {
+    const r = await fetch(API + "/health");
+    const d = await r.json();
+    box.className = "status ok";
+    box.innerHTML = '<i></i><span>متصل — ' + d.chunks + ' قطعة</span>';
+  } catch (e) {
+    box.className = "status bad";
+    box.innerHTML = '<i></i><span>الخادم متوقّف</span>';
+  }
+}
+
+function renderDocs() {
+  const box = el("docs");
+  const q = state.docFilter.trim().toLowerCase();
+  const list = q ? state.docs.filter(d => d.filename.toLowerCase().includes(q)) : state.docs;
+
+  el("docCount").textContent = state.docs.length ? "(" + state.docs.length + ")" : "";
+
+  if (!state.docs.length) {
+    box.innerHTML = '<div class="empty">لا توجد مستندات بعد.</div>';
+    return;
+  }
+  if (!list.length) {
+    box.innerHTML = '<div class="empty">لا نتائج للبحث.</div>';
+    return;
+  }
+
+  box.innerHTML = list.map(d =>
+    '<div class="doc">' +
+      '<span class="kind">' + esc(ext(d.filename)) + '</span>' +
+      '<div class="meta">' +
+        '<div class="fname" title="' + esc(d.filename) + '">' + esc(d.filename) + '</div>' +
+        '<div class="chunks">' + d.chunks + ' قطعة</div>' +
+      '</div>' +
+      '<button class="del" data-h="' + esc(d.doc_hash) + '" title="حذف">🗑</button>' +
+    '</div>').join("");
+
+  box.querySelectorAll(".del").forEach(b => { b.onclick = () => removeDoc(b.dataset.h); });
+}
+
+async function refreshDocs() {
+  try {
+    const r = await fetch(API + "/documents");
+    state.docs = await r.json();
+  } catch (e) {
+    state.docs = [];
+  }
+  renderDocs();
+}
+
+async function removeDoc(hash) {
+  try {
+    const r = await fetch(API + "/documents/" + hash, { method: "DELETE" });
+    if (!r.ok && r.status !== 204) throw new Error(r.status);
+    toast("تم الحذف");
+    refreshDocs();
+    refreshStatus();
+  } catch (e) { toast("تعذّر الحذف", "err"); }
+}
+
+async function upload(files) {
+  for (const f of files) {
+    const fd = new FormData();
+    fd.append("file", f);
+    try {
+      const r = await fetch(API + "/documents", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || r.status);
+      if (d.status === "added") toast(f.name + " — " + d.chunks + " قطعة");
+      else if (d.status === "duplicate") toast(f.name + " مرفوع مسبقاً");
+      else toast(f.name + " بلا نص قابل للقراءة", "err");
+    } catch (e) { toast(f.name + ": " + e.message, "err"); }
+  }
+  refreshDocs();
+  refreshStatus();
+}
+
+/* ---------- المحادثات المحفوظة ---------- */
+
+function renderHistory() {
+  const box = el("hist");
+  const withMsgs = state.sessions.filter(s => s.messages.length);
+
+  el("histCount").textContent = withMsgs.length ? "(" + withMsgs.length + ")" : "";
+
+  if (!withMsgs.length) {
+    box.innerHTML = '<div class="empty">لا محادثات محفوظة.</div>';
+    return;
+  }
+
+  box.innerHTML = withMsgs.map(s =>
+    '<button class="hist ' + (s.id === state.currentId ? "on" : "") + '" data-id="' + s.id + '">' +
+      '<span class="t">' + esc(s.title) + '</span>' +
+      '<span class="x" data-del="' + s.id + '" title="حذف">✕</span>' +
+    '</button>').join("");
+
+  box.querySelectorAll(".hist").forEach(b => {
+    b.onclick = e => {
+      if (e.target.dataset.del) { deleteSession(e.target.dataset.del); return; }
+      state.currentId = b.dataset.id;
+      renderThread();
+      renderHistory();
+    };
+  });
+}
+
+function deleteSession(id) {
+  state.sessions = state.sessions.filter(s => s.id !== id);
+  if (state.currentId === id) state.currentId = null;
+  saveSessions();
+  renderHistory();
+  renderThread();
+}
+
+/* ---------- عرض المحادثة ---------- */
+
+function sourcesHTML(sources) {
+  if (!sources || !sources.length) return "";
+  const items = sources.map((s, i) =>
+    '<details class="src">' +
+      '<summary>' +
+        '<span class="n">' + (i + 1) + '</span>' +
+        '<span class="f">' + esc(s.doc || s.source) + '</span>' +
+        '<span class="l">' + esc(s.chunk || s.location) + '</span>' +
+      '</summary>' +
+      '<div class="t">' + esc(s.text || "النص غير متاح لهذا المصدر.") + '</div>' +
+    '</details>').join("");
+  return '<details class="srcs"><summary>المصادر (' + sources.length + ') ▾</summary>' + items + '</details>';
+}
+
+function turnHTML(m, idx, isLast) {
+  if (m.role === "user") {
+    return '<div class="turn user">' +
+        '<div class="bubble">' + esc(m.text) + '</div>' +
+        '<span class="who"><span class="ts">' + esc(m.ts) + '</span></span>' +
+      '</div>';
+  }
+
+  const tools = (m.tools && m.tools.length)
+    ? '<div class="chips">' + m.tools.map(t => '<span class="chip">✓ ' + esc(t) + '</span>').join("") + '</div>'
+    : "";
+
+  const acts = m.text
+    ? '<div class="acts">' +
+        '<button data-copy="' + idx + '">نسخ</button>' +
+        (isLast ? '<button data-regen="1">إعادة توليد</button>' : "") +
+      '</div>'
+    : "";
+
+  const body = m.text
+    ? esc(m.text)
+    : '<div class="typing"><i></i><i></i><i></i></div>';
+
+  return '<div class="turn" data-idx="' + idx + '">' +
+      '<div class="who"><span class="dot"></span><span class="nm">المساعد</span><span class="ts">' + esc(m.ts) + '</span></div>' +
+      tools +
+      '<div class="answer">' + body + '</div>' +
+      sourcesHTML(m.sources) +
+      acts +
+    '</div>';
+}
+
+function renderThread() {
+  const s = current();
+  const thread = el("thread");
+
+  if (!s || !s.messages.length) {
+    thread.hidden = true;
+    el("welcome").hidden = false;
+    return;
+  }
+
+  el("welcome").hidden = true;
+  thread.hidden = false;
+
+  const lastAssistant = s.messages.map(m => m.role).lastIndexOf("assistant");
+  thread.innerHTML = s.messages.map((m, i) => turnHTML(m, i, i === lastAssistant)).join("");
+
+  thread.querySelectorAll("[data-copy]").forEach(b => {
+    b.onclick = () => copyText(s.messages[+b.dataset.copy].text);
+  });
+
+  const regen = thread.querySelector("[data-regen]");
+  if (regen) regen.onclick = regenerate;
+
+  scrollDown();
+}
+
+/* ---------- الاستدعاء ---------- */
+
+/* يبني قائمة الرسائل: الأدوار السابقة المكتملة ثم السؤال الحالي.
+   نتجاوز آخر رسالتين لأنهما السؤال الحالي وردّه الفارغ. */
+function buildMessages(question) {
+  const s = current();
+  const past = s ? s.messages.slice(0, -2) : [];
+  const msgs = past
+    .filter(m => m.text && m.text.trim() && !m.text.startsWith("⚠️"))
+    .map(m => ({ role: m.role, content: m.text }));
+  msgs.push({ role: "user", content: question });
+  return msgs;
+}
+
+async function askAgent(question, onDelta, onTools, onSources) {
+  const res = await fetch(API + "/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: buildMessages(question) }),
+  });
+  if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let acc = "", buf = "";
+
+  for (;;) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    buf += dec.decode(chunk.value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop();
+
+    for (const line of lines) {
+      if (line.indexOf("data:") !== 0) continue;
+      const raw = line.slice(5).trim();
+      if (!raw || raw === "[DONE]") continue;
+
+      let p = null;
+      try { p = JSON.parse(raw); } catch (e) { acc += raw; onDelta(acc); continue; }
+
+      if (p.event === "tools") onTools(p.tools);
+      else if (p.event === "sources") onSources(p.sources);
+      else if (p.delta) { acc += p.delta; onDelta(acc); }
+    }
+  }
+  return acc;
+}
+
+async function askDocs(question) {
+  const res = await fetch(API + "/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question: question }),
+  });
+  const d = await res.json();
+  if (!res.ok) throw new Error(d.detail || res.status);
+  return d;
+}
+
+async function run(question) {
+  if (state.busy) return;
+  state.busy = true;
+  el("send").disabled = true;
+
+  let s = current();
+  if (!s) s = newSession();
+  if (!s.messages.length) s.title = question.slice(0, 42);
+
+  s.messages.push({ role: "user", text: question, ts: now() });
+  const reply = { role: "assistant", text: "", tools: [], sources: [], ts: now() };
+  s.messages.push(reply);
+
+  const replyIdx = s.messages.length - 1;
+  renderThread();
+  renderHistory();
+
+  const live = () => {
+    const turn = el("thread").querySelector('[data-idx="' + replyIdx + '"]');
+    return turn ? turn.querySelector(".answer") : null;
+  };
+
+  try {
+    if (state.mode === "agent") {
+      reply.text = await askAgent(
+        question,
+        acc => { const n = live(); if (n) { n.textContent = acc; scrollDown(); } },
+        tl  => { reply.tools = tl; },
+        sr  => { reply.sources = sr; }
+      );
+    } else {
+      const d = await askDocs(question);
+      reply.text = d.answer;
+      reply.sources = d.sources || [];
+    }
+    if (!reply.text.trim()) reply.text = "لم تصل إجابة من الخادم.";
+  } catch (e) {
+    reply.text = "⚠️ " + e.message;
+  }
+
+  saveSessions();
+  renderThread();
+  renderHistory();
+
+  state.busy = false;
+  el("send").disabled = false;
+  el("input").focus();
+}
+
+function regenerate() {
+  const s = current();
+  if (!s || state.busy) return;
+
+  let lastUser = null;
+  for (let i = s.messages.length - 1; i >= 0; i--) {
+    if (s.messages[i].role === "user") { lastUser = s.messages[i]; break; }
+  }
+  if (!lastUser) return;
+
+  const lastAssistant = s.messages.map(m => m.role).lastIndexOf("assistant");
+  if (lastAssistant > -1) s.messages.splice(lastAssistant, 1);
+  const lastUserIdx = s.messages.map(m => m.role).lastIndexOf("user");
+  if (lastUserIdx > -1) s.messages.splice(lastUserIdx, 1);
+
+  renderThread();
+  run(lastUser.text);
+}
+
+function send() {
+  const box = el("input");
+  const q = box.value.trim();
+  if (!q) return;
+  box.value = "";
+  box.style.height = "auto";
+  run(q);
+}
+
+/* ---------- التصدير ---------- */
+
+function exportMd() {
+  const s = current();
+  if (!s || !s.messages.length) { toast("لا توجد محادثة لتصديرها", "err"); return; }
+
+  const lines = ["# " + s.title, "", "*" + new Date(s.ts).toLocaleString("ar-SA") + "*", ""];
+
+  for (const m of s.messages) {
+    if (m.role === "user") {
+      lines.push("## سؤال", "", m.text, "");
+      continue;
+    }
+    lines.push("### إجابة", "", m.text, "");
+    if (m.tools && m.tools.length) lines.push("**الأدوات:** " + m.tools.join("، "), "");
+    if (m.sources && m.sources.length) {
+      lines.push("**المصادر:**", "");
+      m.sources.forEach((src, i) => {
+        lines.push((i + 1) + ". `" + (src.doc || src.source) + "` — " + (src.chunk || src.location));
+        if (src.text) lines.push("   > " + String(src.text).replace(/\n/g, "\n   > "));
+      });
+      lines.push("");
+    }
+    lines.push("---", "");
+  }
+
+  download("محادثة-" + s.id + ".md", lines.join("\n"));
+  toast("تم التصدير");
+}
+
+/* ---------- الربط ---------- */
+
+el("suggest").innerHTML = SUGGESTIONS.map((pair, i) =>
+  '<button data-i="' + i + '"><span class="tag">' + esc(pair[0]) + '</span>' + esc(pair[1]) + '</button>').join("");
+
+el("suggest").querySelectorAll("button").forEach(b => {
+  b.onclick = () => run(SUGGESTIONS[b.dataset.i][1]);
+});
+
+el("send").onclick = send;
+
+el("input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+el("input").addEventListener("input", e => {
+  e.target.style.height = "auto";
+  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+});
+
+function setMode(m) {
+  state.mode = m;
+  el("mAgent").classList.toggle("on", m === "agent");
+  el("mDocs").classList.toggle("on", m === "docs");
+  el("modeHint").textContent = m === "agent"
+    ? "الوكيل — يختار بين المستندات وقاعدة البيانات"
+    : "المستندات — بحث دلالي فقط";
+}
+el("mAgent").onclick = () => setMode("agent");
+el("mDocs").onclick = () => setMode("docs");
+
+el("drop").onclick = () => el("file").click();
+el("file").onchange = e => { upload(e.target.files); e.target.value = ""; };
+
+["dragenter", "dragover"].forEach(ev =>
+  el("drop").addEventListener(ev, e => { e.preventDefault(); el("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(ev =>
+  el("drop").addEventListener(ev, e => { e.preventDefault(); el("drop").classList.remove("over"); }));
+el("drop").addEventListener("drop", e => upload(e.dataTransfer.files));
+
+el("docSearch").addEventListener("input", e => { state.docFilter = e.target.value; renderDocs(); });
+
+el("newChat").onclick = () => { newSession(); renderThread(); renderHistory(); el("input").focus(); };
+el("export").onclick = exportMd;
+
+function setTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  el("theme").textContent = t === "light" ? "☀" : "☾";
+  store.set("theme", t);
+}
+
+el("theme").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  setTheme(cur === "light" ? "dark" : "light");
+};
+
+/* ---------- الإقلاع ---------- */
+
+setTheme(store.get("theme", "dark"));
+state.currentId = state.sessions.length ? state.sessions[0].id : null;
+renderHistory();
+renderThread();
+refreshStatus();
+refreshDocs();
+setInterval(refreshStatus, 20000);
+</script>
+
+</body>
+</html>

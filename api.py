@@ -1,7 +1,9 @@
 """واجهة REST للمساعد المؤسسي."""
 
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
+import chat_adapter
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
@@ -32,6 +34,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(chat_adapter.build_chat_route(lambda: state["collection"]))
 
 # ---------- نماذج البيانات ----------
 

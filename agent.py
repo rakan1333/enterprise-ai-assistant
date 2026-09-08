@@ -1,4 +1,4 @@
-"""الوكيل — يختار الأداة المناسبة لكل سؤال."""
+"""الوكيل — يختار الأداة المناسبة لكل سؤال، مع ذاكرة محادثة."""
 
 import json
 import os
@@ -16,10 +16,17 @@ log = get_logger(__name__)
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
+
 MAX_STEPS = 5
 AGENT_MAX_DISTANCE = 0.20
 AGENT_TOP_K = 6
 MAX_SOURCES_SHOWN = 3
+
+# عدد الرسائل السابقة التي تُمرّر للنموذج (سؤال + إجابة = رسالتان)
+MAX_HISTORY_MESSAGES = 8
+
+# أقصى طول لكل رسالة سابقة — يمنع تضخّم السياق
+MAX_HISTORY_CHARS = 1500
 
 SYSTEM_PROMPT = """أنت مساعد مؤسسي ذكي لديه أدوات متعددة.
 
@@ -29,6 +36,13 @@ SYSTEM_PROMPT = """أنت مساعد مؤسسي ذكي لديه أدوات مت�
 - أسئلة عن موظفي قسم ← list_department_employees
 - أسئلة الإجماليات والمقارنات بين الأقسام ← department_summary
 - الحسابات الرياضية ← calculate
+
+التعامل مع المحادثة:
+- إذا كان السؤال ناقصاً واعتمد على ما سبق (مثل "وكم السنوية؟" أو "وهو؟")،
+  فاستنتج المقصود من الرسائل السابقة قبل اختيار الأداة.
+- عند استدعاء أداة، اكتب معاملات مكتملة ومستقلة عن سياق المحادثة.
+  مثال: إن سبق الحديث عن خالد الدوسري وسُئلت "وكم السنوية؟"،
+  فاستدعِ get_employee باسم "خالد الدوسري" لا بكلمة "هو".
 
 قواعد إلزامية:
 - لا تخترع معلومات. استخدم الأدوات دائماً.
@@ -45,7 +59,8 @@ TOOL_SPECS = [
             "name": "search_documents",
             "description": (
                 "يبحث في مستندات الشركة (سياسات، لوائح، إجراءات) ويعيد المقاطع "
-                "ذات الصلة مع مصادرها. استخدمه للأسئلة النصية عن السياسات."
+                "ذات الصلة مع مصادرها. استخدمه للأسئلة النصية عن السياسات. "
+                "اكتب استعلاماً مكتملاً لا يعتمد على سياق المحادثة."
             ),
             "parameters": {
                 "type": "object",
@@ -64,7 +79,7 @@ TOOL_SPECS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "اسم الموظف أو جزء منه"}
+                    "name": {"type": "string", "description": "اسم الموظف كاملاً أو جزء منه"}
                 },
                 "required": ["name"],
             },
@@ -74,11 +89,11 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "get_employee",
-            "description": "يعيد بيانات موظف: القسم، المسمى الوظيفي، الرصيد.",
+            "description": "يعيد بيانات موظف: القسم، المسمى الوظيفي، الرصيد السنوي والمستخدم.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "اسم الموظف أو جزء منه"}
+                    "name": {"type": "string", "description": "اسم الموظف كاملاً أو جزء منه"}
                 },
                 "required": ["name"],
             },
@@ -188,11 +203,37 @@ def _execute_tool(collection, name: str, args: dict) -> dict:
     return {"error": f"أداة غير معروفة: {name}"}
 
 
-def run_agent(collection, question: str) -> dict:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": question},
-    ]
+def _clean_history(history: list[dict] | None) -> list[dict]:
+    """يُبقي رسائل المستخدم والمساعد النصية فقط، ضمن حدّ آمن.
+
+    استدعاءات الأدوات لا تُعاد — نتائجها قد تكون قديمة، وإعادتها
+    تضخّم السياق وتغري النموذج بالاعتماد على بيانات لم يعد يتحقق منها.
+    """
+    if not history:
+        return []
+
+    kept = []
+    for m in history:
+        role = m.get("role")
+        content = (m.get("content") or "").strip()
+        if role not in ("user", "assistant") or not content:
+            continue
+        kept.append({"role": role, "content": content[:MAX_HISTORY_CHARS]})
+
+    return kept[-MAX_HISTORY_MESSAGES:]
+
+
+def run_agent(collection, question: str, history: list[dict] | None = None) -> dict:
+    """يشغّل الوكيل على سؤال واحد، مع تاريخ محادثة اختياري."""
+    past = _clean_history(history)
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages.extend(past)
+    messages.append({"role": "user", "content": question})
+
+    if past:
+        log.info("سياق المحادثة: %d رسالة سابقة", len(past))
+
     trace = []
     sources = []
 
