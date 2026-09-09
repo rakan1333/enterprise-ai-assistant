@@ -8,6 +8,7 @@
 
 import asyncio
 import json
+import time
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -15,6 +16,7 @@ from pydantic import BaseModel, Field
 
 import agent
 import guardrails
+import metrics
 from logging_config import get_logger
 
 log = get_logger(__name__)
@@ -43,16 +45,33 @@ def _sse(payload: dict | str) -> str:
 
 
 async def _stream(collection, question: str, history: list[dict]):
-    """ينفّذ الوكيل ثم يبثّ إجابته كلمةً كلمة."""
+    """ينفّذ الوكيل ثم يبثّ إجابته كلمةً كلمة، ويسجّل الحدث."""
+    start = time.perf_counter()
+
     try:
         out = await asyncio.to_thread(agent.run_agent, collection, question, history)
     except Exception as e:
         log.exception("فشل الوكيل داخل المحوّل")
+        metrics.record(
+            kind="question", question=question, mode="agent",
+            outcome="error", duration_ms=int((time.perf_counter() - start) * 1000),
+        )
         yield _sse({"delta": f"⚠️ تعذّر إنتاج إجابة: {e}"})
         yield _sse("[DONE]")
         return
 
     steps = [t["tool"] for t in out.get("trace", [])]
+
+    metrics.record(
+        kind="question",
+        question=question,
+        mode="agent",
+        tools=steps,
+        sources=len(out.get("sources", [])),
+        tokens=out.get("tokens", 0),
+        outcome="ok" if steps else "refused",
+        duration_ms=int((time.perf_counter() - start) * 1000),
+    )
     if steps:
         yield _sse({"event": "tools", "tools": steps})
 
@@ -90,12 +109,10 @@ def build_chat_route(get_collection):
             guardrails.check_question(question)
         except guardrails.GuardrailViolation as e:
             log.warning("رُفض سؤال عند بوابة /chat: %s", e)
-
-            async def refuse():
-                yield _sse({"delta": str(e)})
-                yield _sse("[DONE]")
-
-            return StreamingResponse(refuse(), media_type="text/event-stream")
+            metrics.record(
+                kind="question", question=question, mode="agent", outcome="blocked"
+            )
+            raise HTTPException(status_code=400, detail=str(e))
 
         return StreamingResponse(
             _stream(get_collection(), question, history),

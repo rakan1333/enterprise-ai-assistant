@@ -168,7 +168,8 @@ def _search_documents(collection, query: str) -> dict:
     }
 
 
-def _call_llm(messages: list[dict]) -> dict:
+def _call_llm(messages: list[dict]) -> tuple[dict, int]:
+    """يعيد (رسالة النموذج، عدد الرموز المستهلكة في هذا الاستدعاء)."""
     r = httpx.post(
         GROQ_URL,
         headers={"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"},
@@ -184,7 +185,10 @@ def _call_llm(messages: list[dict]) -> dict:
     if r.status_code != 200:
         log.error("فشل النموذج | %s | %s", r.status_code, r.text[:200])
         raise RuntimeError(f"LLM error {r.status_code}")
-    return r.json()["choices"][0]["message"]
+
+    data = r.json()
+    tokens = data.get("usage", {}).get("total_tokens", 0)
+    return data["choices"][0]["message"], tokens
 
 
 def _execute_tool(collection, name: str, args: dict) -> dict:
@@ -236,18 +240,24 @@ def run_agent(collection, question: str, history: list[dict] | None = None) -> d
 
     trace = []
     sources = []
+    total_tokens = 0
 
     for step in range(MAX_STEPS):
-        msg = _call_llm(messages)
+        msg, tokens = _call_llm(messages)
+        total_tokens += tokens
         messages.append(msg)
 
         calls = msg.get("tool_calls")
         if not calls:
-            log.info("الوكيل أجاب بعد %d خطوة", step)
+            log.info(
+                "الوكيل أجاب بعد %d خطوة | %d رمز | %d أداة",
+                step, total_tokens, len(trace),
+            )
             return {
                 "answer": msg.get("content", ""),
                 "trace": trace,
                 "sources": sources,
+                "tokens": total_tokens,
             }
 
         for call in calls:
@@ -278,9 +288,10 @@ def run_agent(collection, question: str, history: list[dict] | None = None) -> d
                 "content": json.dumps(result, ensure_ascii=False),
             })
 
-    log.warning("الوكيل تجاوز الحد الأقصى للخطوات")
+    log.warning("الوكيل تجاوز الحد الأقصى للخطوات | %d رمز", total_tokens)
     return {
         "answer": "تعذّر الوصول لإجابة نهائية ضمن عدد الخطوات المسموح.",
         "trace": trace,
         "sources": sources,
+        "tokens": total_tokens,
     }

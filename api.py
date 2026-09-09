@@ -1,14 +1,16 @@
 """واجهة REST للمساعد المؤسسي."""
 
+import time
 from contextlib import asynccontextmanager
-from fastapi.middleware.cors import CORSMiddleware
 
-import chat_adapter
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import agent
+import chat_adapter
 import guardrails
+import metrics
 import rag_engine as engine
 from logging_config import get_logger, setup_logging
 
@@ -18,10 +20,15 @@ log = get_logger(__name__)
 state: dict = {}
 
 
+def _ms(start: float) -> int:
+    return int((time.perf_counter() - start) * 1000)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("بدء تشغيل الخدمة — تحميل قاعدة المتجهات")
     state["collection"] = engine.get_collection()
+    metrics.init_db()
     log.info("الخدمة جاهزة — %d قطعة مخزّنة", state["collection"].count())
     yield
     log.info("إيقاف الخدمة")
@@ -29,8 +36,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="المساعد المؤسسي",
-    description="واجهة REST للإجابة عن الأسئلة من مستندات الشركة",
-    version="1.0.0",
+    description="واجهة REST للإجابة عن الأسئلة من مستندات الشركة وقواعد بياناتها",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -42,6 +49,7 @@ app.add_middleware(
 )
 
 app.include_router(chat_adapter.build_chat_route(lambda: state["collection"]))
+
 
 # ---------- نماذج البيانات ----------
 
@@ -61,10 +69,35 @@ class AskResponse(BaseModel):
     sources: list[Source]
 
 
+class AgentStep(BaseModel):
+    tool: str
+    args: dict
+
+
+class AgentResponse(BaseModel):
+    answer: str
+    steps: list[AgentStep]
+    sources: list[dict]
+
+
 class HealthResponse(BaseModel):
     status: str
     chunks: int
     documents: int
+
+
+class StatsResponse(BaseModel):
+    questions: int
+    total_tokens: int
+    avg_ms: int
+    max_ms: int
+    refused: int
+    blocked: int
+    errors: int
+    uploads: int
+    by_mode: dict
+    by_tool: dict
+    recent: list[dict]
 
 
 class DocumentInfo(BaseModel):
@@ -79,17 +112,6 @@ class UploadResult(BaseModel):
     chunks: int
 
 
-class AgentStep(BaseModel):
-    tool: str
-    args: dict
-
-
-class AgentResponse(BaseModel):
-    answer: str
-    steps: list[AgentStep]
-    sources: list[dict]
-
-
 # ---------- النظام ----------
 
 @app.get("/health", response_model=HealthResponse, tags=["النظام"])
@@ -102,15 +124,45 @@ def health():
     )
 
 
+@app.get("/stats", response_model=StatsResponse, tags=["النظام"])
+def stats():
+    return StatsResponse(**metrics.summary())
+
+
 # ---------- الأسئلة ----------
 
 @app.post("/ask", response_model=AskResponse, tags=["الأسئلة"])
 def ask(req: AskRequest):
+    start = time.perf_counter()
+
+    try:
+        guardrails.check_question(req.question)
+    except guardrails.GuardrailViolation as e:
+        log.warning("رُفض سؤال عند بوابة /ask: %s", e)
+        metrics.record(
+            kind="question", question=req.question, mode="docs",
+            outcome="blocked", duration_ms=_ms(start),
+        )
+        raise HTTPException(status_code=400, detail=str(e))
+
     try:
         out = engine.ask_rag(state["collection"], req.question)
     except Exception as e:
         log.exception("فشل معالجة السؤال")
+        metrics.record(
+            kind="question", question=req.question, mode="docs",
+            outcome="error", duration_ms=_ms(start),
+        )
         raise HTTPException(status_code=502, detail=f"فشل استدعاء النموذج: {e}")
+
+    metrics.record(
+        kind="question",
+        question=req.question,
+        mode="docs",
+        sources=len(out["sources"]),
+        outcome="ok" if out["sources"] else "refused",
+        duration_ms=_ms(start),
+    )
 
     return AskResponse(
         answer=out["answer"],
@@ -125,25 +177,48 @@ def ask(req: AskRequest):
         ],
     )
 
+
 @app.post("/agent", response_model=AgentResponse, tags=["الوكيل"])
 def agent_ask(req: AskRequest):
+    start = time.perf_counter()
+
     try:
         guardrails.check_question(req.question)
     except guardrails.GuardrailViolation as e:
-        log.warning("رُفض سؤال عند البوابة: %s", e)
+        log.warning("رُفض سؤال عند بوابة /agent: %s", e)
+        metrics.record(
+            kind="question", question=req.question, mode="agent",
+            outcome="blocked", duration_ms=_ms(start),
+        )
         raise HTTPException(status_code=400, detail=str(e))
 
     try:
         out = agent.run_agent(state["collection"], req.question)
     except Exception as e:
         log.exception("فشل تشغيل الوكيل")
+        metrics.record(
+            kind="question", question=req.question, mode="agent",
+            outcome="error", duration_ms=_ms(start),
+        )
         raise HTTPException(status_code=502, detail=f"فشل الوكيل: {e}")
+
+    tools_used = [t["tool"] for t in out["trace"]]
+    metrics.record(
+        kind="question",
+        question=req.question,
+        mode="agent",
+        tools=tools_used,
+        sources=len(out["sources"]),
+        outcome="ok" if tools_used else "refused",
+        duration_ms=_ms(start),
+    )
 
     return AgentResponse(
         answer=out["answer"],
         steps=[AgentStep(tool=t["tool"], args=t["args"]) for t in out["trace"]],
         sources=out["sources"],
     )
+
 
 # ---------- المستندات ----------
 
@@ -173,7 +248,15 @@ async def upload_doc(file: UploadFile = File(...)):
         result = engine.ingest_file(state["collection"], content, file.filename)
     except Exception as e:
         log.exception("فشل رفع الملف %s", file.filename)
+        metrics.record(kind="upload", question=file.filename, outcome="error")
         raise HTTPException(status_code=500, detail=f"فشل معالجة الملف: {e}")
+
+    metrics.record(
+        kind="upload",
+        question=file.filename,
+        outcome=result["status"],
+        sources=result["chunks"],
+    )
 
     return UploadResult(**result)
 
@@ -189,3 +272,4 @@ def delete_doc(doc_hash: str):
     if not engine.document_exists(col, doc_hash):
         raise HTTPException(status_code=404, detail="المستند غير موجود")
     engine.delete_document(col, doc_hash)
+    metrics.record(kind="delete", question=doc_hash)
