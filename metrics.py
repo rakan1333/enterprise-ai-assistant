@@ -110,3 +110,46 @@ def reset(path=DB_PATH) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+# ---------- تصنيف نتيجة الإجابة ----------
+
+# عبارات يستخدمها النموذج عند الاعتراف بعدم المعرفة.
+# مصدرها SYSTEM_PROMPT، فهي متوقّعة لا مخمّنة.
+_REFUSAL_MARKERS = (
+    "لا تحتوي",
+    "لا توجد معلومات",
+    "لا توجد مقاطع",
+    "المستندات المتوفرة لا",
+    "المستندات المتاحة لا",
+    "لا يوجد موظف",
+    "تعذّر الوصول لإجابة",
+    "يرجى تزويدي",
+    "أرجو توضيح",
+    "يلزم تحديد",
+    "تحتاج إلى تحديد",
+)
+
+
+def classify_outcome(answer: str, tools: list[str] | None, sources: int) -> str:
+    """يصنّف النتيجة من مخرَج الإجابة لا من مسارها.
+
+    استدعاء أداة ليس نجاحاً — البحث قد يستدعى ولا يجد شيئاً.
+    المعيار: هل أنتج النظام إجابة مفيدة فعلاً؟
+    """
+    text = (answer or "").strip()
+
+    if not text:
+        return "error"
+
+    if text.startswith("⚠️"):
+        return "error"
+
+    for marker in _REFUSAL_MARKERS:
+        if marker in text:
+            return "refused"
+
+    if not tools and sources == 0:
+        return "refused"
+
+    return "ok"

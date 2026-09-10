@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 import agent
 import chat_adapter
 import guardrails
+import hybrid
 import metrics
 import rag_engine as engine
 from logging_config import get_logger, setup_logging
@@ -55,6 +56,7 @@ app.include_router(chat_adapter.build_chat_route(lambda: state["collection"]))
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=500)
+    user_name: str = Field(default="", max_length=80)
 
 
 class Source(BaseModel):
@@ -160,7 +162,7 @@ def ask(req: AskRequest):
         question=req.question,
         mode="docs",
         sources=len(out["sources"]),
-        outcome="ok" if out["sources"] else "refused",
+        outcome=metrics.classify_outcome(out["answer"], None, len(out["sources"])),
         duration_ms=_ms(start),
     )
 
@@ -193,7 +195,9 @@ def agent_ask(req: AskRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     try:
-        out = agent.run_agent(state["collection"], req.question)
+        out = agent.run_agent(
+            state["collection"], req.question, user_name=req.user_name
+        )
     except Exception as e:
         log.exception("فشل تشغيل الوكيل")
         metrics.record(
@@ -209,7 +213,10 @@ def agent_ask(req: AskRequest):
         mode="agent",
         tools=tools_used,
         sources=len(out["sources"]),
-        outcome="ok" if tools_used else "refused",
+        tokens=out.get("tokens", 0),
+        outcome=metrics.classify_outcome(
+            out["answer"], tools_used, len(out["sources"])
+        ),
         duration_ms=_ms(start),
     )
 
@@ -251,6 +258,9 @@ async def upload_doc(file: UploadFile = File(...)):
         metrics.record(kind="upload", question=file.filename, outcome="error")
         raise HTTPException(status_code=500, detail=f"فشل معالجة الملف: {e}")
 
+    if result["status"] == "added":
+        hybrid.invalidate()
+
     metrics.record(
         kind="upload",
         question=file.filename,
@@ -272,4 +282,5 @@ def delete_doc(doc_hash: str):
     if not engine.document_exists(col, doc_hash):
         raise HTTPException(status_code=404, detail="المستند غير موجود")
     engine.delete_document(col, doc_hash)
+    hybrid.invalidate()
     metrics.record(kind="delete", question=doc_hash)

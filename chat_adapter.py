@@ -35,6 +35,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1)
     model: str = "balanced"
+    user_name: str = Field(default="", max_length=80)
 
 
 def _sse(payload: dict | str) -> str:
@@ -44,12 +45,14 @@ def _sse(payload: dict | str) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-async def _stream(collection, question: str, history: list[dict]):
+async def _stream(collection, question: str, history: list[dict], user_name: str = ""):
     """ينفّذ الوكيل ثم يبثّ إجابته كلمةً كلمة، ويسجّل الحدث."""
     start = time.perf_counter()
 
     try:
-        out = await asyncio.to_thread(agent.run_agent, collection, question, history)
+        out = await asyncio.to_thread(
+            agent.run_agent, collection, question, history, user_name
+        )
     except Exception as e:
         log.exception("فشل الوكيل داخل المحوّل")
         metrics.record(
@@ -62,31 +65,33 @@ async def _stream(collection, question: str, history: list[dict]):
 
     steps = [t["tool"] for t in out.get("trace", [])]
 
+    answer = out.get("answer", "")
+    sources = out.get("sources", [])
+
     metrics.record(
         kind="question",
         question=question,
         mode="agent",
         tools=steps,
-        sources=len(out.get("sources", [])),
+        sources=len(sources),
         tokens=out.get("tokens", 0),
-        outcome="ok" if steps else "refused",
+        outcome=metrics.classify_outcome(answer, steps, len(sources)),
         duration_ms=int((time.perf_counter() - start) * 1000),
     )
     if steps:
         yield _sse({"event": "tools", "tools": steps})
 
-    sources = [
+    payload = [
         {
             "doc": s.get("source", ""),
             "chunk": s.get("location", ""),
             "text": s.get("text", ""),
         }
-        for s in out.get("sources", [])
+        for s in sources
     ]
-    if sources:
-        yield _sse({"event": "sources", "sources": sources})
+    if payload:
+        yield _sse({"event": "sources", "sources": payload})
 
-    answer = out.get("answer", "")
     for word in answer.split(" "):
         yield _sse({"delta": word + " "})
         await asyncio.sleep(STREAM_DELAY)
@@ -115,7 +120,7 @@ def build_chat_route(get_collection):
             raise HTTPException(status_code=400, detail=str(e))
 
         return StreamingResponse(
-            _stream(get_collection(), question, history),
+            _stream(get_collection(), question, history, req.user_name),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )

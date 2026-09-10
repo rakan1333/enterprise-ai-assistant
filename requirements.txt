@@ -11,3 +11,4 @@ fastapi
 uvicorn[standard]
 python-multipart
 pytest
+rank_bm25

@@ -46,6 +46,10 @@
 
   * { box-sizing: border-box; }
 
+  /* خاصية hidden تعمل بـ display:none من ورقة المتصفح،
+     وأي قاعدة display معلنة تلغيها. هذي تضمن أسبقيتها. */
+  [hidden] { display: none !important; }
+
   html, body {
     margin: 0; padding: 0; height: 100%;
     background: var(--bg); color: var(--text);
@@ -136,6 +140,8 @@
     color: var(--text); font: 400 12.5px/1 var(--sans); outline: none; direction: rtl;
   }
   .search:focus { border-color: rgba(139,124,255,.5); }
+  select.search { cursor: pointer; appearance: none; padding-left: 26px; }
+  select.search option { background: #14161d; color: #e9ecf4; }
 
   .doc {
     display: flex; align-items: center; gap: 9px;
@@ -353,6 +359,17 @@
     </div>
 
     <div class="side-body">
+      <span class="label">أنا</span>
+      <select class="search" id="whoami">
+        <option value="">— اختر اسمك —</option>
+        <option>أحمد الشمري</option>
+        <option>نورة العتيبي</option>
+        <option>خالد الدوسري</option>
+        <option>سارة القحطاني</option>
+        <option>فهد المطيري</option>
+        <option>ريم الحربي</option>
+      </select>
+
       <span class="label">وضع الإجابة</span>
       <div class="seg">
         <button id="mAgent" class="on">الوكيل</button>
@@ -450,6 +467,7 @@ const state = {
   busy: false,
   docs: [],
   docFilter: "",
+  userName: store.get("userName", ""),
   sessions: store.get("sessions", []),
   currentId: null,
 };
@@ -679,14 +697,18 @@ function turnHTML(m, idx, isLast) {
 function renderThread() {
   const s = current();
   const thread = el("thread");
+  const welcome = el("welcome");
 
   if (!s || !s.messages.length) {
+    // التفريغ صريح — الاعتماد على الإخفاء وحده يترك محتوىً قديماً
+    thread.innerHTML = "";
     thread.hidden = true;
-    el("welcome").hidden = false;
+    welcome.hidden = false;
+    el("scroll").scrollTop = 0;
     return;
   }
 
-  el("welcome").hidden = true;
+  welcome.hidden = true;
   thread.hidden = false;
 
   const lastAssistant = s.messages.map(m => m.role).lastIndexOf("assistant");
@@ -728,7 +750,10 @@ async function askAgent(question, onDelta, onTools, onSources) {
   const res = await fetch(API + "/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: buildMessages(question) }),
+    body: JSON.stringify({
+      messages: buildMessages(question),
+      user_name: state.userName,
+    }),
   });
   if (!res.ok) {
     let detail = "HTTP " + res.status;
@@ -928,7 +953,25 @@ el("drop").addEventListener("drop", e => upload(e.dataTransfer.files));
 
 el("docSearch").addEventListener("input", e => { state.docFilter = e.target.value; renderDocs(); });
 
-el("newChat").onclick = () => { newSession(); renderThread(); renderHistory(); el("input").focus(); };
+el("whoami").addEventListener("change", e => {
+  state.userName = e.target.value;
+  store.set("userName", state.userName);
+  if (state.userName) toast("أنت الآن: " + state.userName);
+});
+
+el("newChat").onclick = () => {
+  const cur = current();
+
+  // إن كانت الجلسة الحالية فارغة أصلاً فلا داعي لإنشاء أخرى فوقها
+  if (!cur || cur.messages.length) newSession();
+
+  el("input").value = "";
+  el("input").style.height = "auto";
+  closeModal();
+  renderThread();
+  renderHistory();
+  el("input").focus();
+};
 el("export").onclick = exportMd;
 
 /* ---------- لوحة الإحصاءات ---------- */
@@ -1040,6 +1083,7 @@ el("theme").onclick = () => {
 /* ---------- الإقلاع ---------- */
 
 setTheme(store.get("theme", "dark"));
+el("whoami").value = state.userName;
 state.currentId = state.sessions.length ? state.sessions[0].id : null;
 renderHistory();
 renderThread();
