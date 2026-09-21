@@ -18,7 +18,6 @@ load_dotenv()
 
 API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
 UI_PATH = Path(__file__).parent / "ui.html"
-UI_HEIGHT = 940
 
 st.set_page_config(
     page_title="المساعد المؤسسي",
@@ -27,16 +26,38 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# إخفاء عناصر Streamlit ليملأ التصميم الشاشة
+# إخفاء عناصر Streamlit ومنع التمرير على مستوى الصفحة.
+# الإطار يُمدَّد بالسكربت ليطابق ارتفاع النافذة تماماً — الارتفاع الثابت
+# يعني إما فراغاً أسفل الشاشة أو صندوق كتابة خارج حدودها.
 st.markdown(
     """
     <style>
       #MainMenu, header, footer { visibility: hidden; height: 0; }
       .block-container { padding: 0 !important; max-width: 100% !important; }
-      iframe { border: 0; }
-      .stApp { background: #07080b; }
       div[data-testid="stAppViewBlockContainer"] { padding: 0 !important; }
+      div[data-testid="stVerticalBlock"] { gap: 0 !important; }
+      .stApp { background: #07080b; overflow: hidden; }
+      html, body { overflow: hidden !important; }
+      iframe { border: 0; display: block; }
     </style>
+
+    <script>
+      (function () {
+        function fit() {
+          const doc = window.parent.document;
+          const h = window.parent.innerHeight - 8;
+          doc.querySelectorAll('iframe').forEach(function (f) {
+            f.style.height = h + 'px';
+            f.setAttribute('height', h);
+          });
+        }
+        fit();
+        setTimeout(fit, 120);
+        setTimeout(fit, 400);
+        setTimeout(fit, 900);
+        window.parent.addEventListener('resize', fit);
+      })();
+    </script>
     """,
     unsafe_allow_html=True,
 )
@@ -54,4 +75,5 @@ html = html.replace(
     1,
 )
 
-components.html(html, height=UI_HEIGHT, scrolling=False)
+# قيمة أوّلية معقولة — السكربت أعلاه يصحّحها فور التحميل
+components.html(html, height=700, scrolling=False)

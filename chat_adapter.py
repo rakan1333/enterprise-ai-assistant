@@ -10,18 +10,33 @@ import asyncio
 import json
 import time
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 import agent
+import auth
 import guardrails
 import metrics
+import ratelimit
 from logging_config import get_logger
 
 log = get_logger(__name__)
 
 router = APIRouter()
+_bearer = HTTPBearer(auto_error=False)
+
+
+def _current_user(
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> dict:
+    if creds is None:
+        raise HTTPException(status_code=401, detail="مطلوب تسجيل الدخول")
+    try:
+        return auth.decode_token(creds.credentials)
+    except auth.AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 # تأخير بسيط بين الكلمات يعطي إحساس الكتابة الحيّة
 STREAM_DELAY = 0.02
@@ -45,19 +60,21 @@ def _sse(payload: dict | str) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-async def _stream(collection, question: str, history: list[dict], user_name: str = ""):
+async def _stream(collection, question: str, history: list[dict], actor: dict, rid: str = ""):
     """ينفّذ الوكيل ثم يبثّ إجابته كلمةً كلمة، ويسجّل الحدث."""
     start = time.perf_counter()
 
     try:
         out = await asyncio.to_thread(
-            agent.run_agent, collection, question, history, user_name
+            agent.run_agent, collection, question, history,
+            actor.get("name", ""), actor,
         )
     except Exception as e:
         log.exception("فشل الوكيل داخل المحوّل")
         metrics.record(
             kind="question", question=question, mode="agent",
             outcome="error", duration_ms=int((time.perf_counter() - start) * 1000),
+            actor=actor, request_id=rid,
         )
         yield _sse({"delta": f"⚠️ تعذّر إنتاج إجابة: {e}"})
         yield _sse("[DONE]")
@@ -77,6 +94,8 @@ async def _stream(collection, question: str, history: list[dict], user_name: str
         tokens=out.get("tokens", 0),
         outcome=metrics.classify_outcome(answer, steps, len(sources)),
         duration_ms=int((time.perf_counter() - start) * 1000),
+        actor=actor,
+        request_id=rid,
     )
     if steps:
         yield _sse({"event": "tools", "tools": steps})
@@ -103,9 +122,12 @@ def build_chat_route(get_collection):
     """ينشئ النقطة مع حقن مصدر المجموعة من التطبيق المضيف."""
 
     @router.post("/chat", tags=["الوكيل"])
-    async def chat(req: ChatRequest):
+    async def chat(req: ChatRequest, request: Request, user: dict = Depends(_current_user)):
         if req.messages[-1].role != "user":
             raise HTTPException(status_code=400, detail="آخر رسالة يجب أن تكون من المستخدم")
+
+        rid = getattr(request.state, "request_id", "")
+        ratelimit.agent_limiter.check(ratelimit.client_key(request, user))
 
         question = req.messages[-1].content
         history = [{"role": m.role, "content": m.content} for m in req.messages[:-1]]
@@ -115,14 +137,16 @@ def build_chat_route(get_collection):
         except guardrails.GuardrailViolation as e:
             log.warning("رُفض سؤال عند بوابة /chat: %s", e)
             metrics.record(
-                kind="question", question=question, mode="agent", outcome="blocked"
+                kind="question", question=question, mode="agent", outcome="blocked",
+                actor=user, request_id=rid,
             )
             raise HTTPException(status_code=400, detail=str(e))
 
         return StreamingResponse(
-            _stream(get_collection(), question, history, req.user_name),
+            _stream(get_collection(), question, history, user, rid),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+                     "X-Request-ID": rid},
         )
 
     return router

@@ -13,3 +13,6 @@ debuq.py
 .pytest_cache/
 .pytest_cache/
 __pycache__/
+accounts.txt
+.auth_secret
+*.db

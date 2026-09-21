@@ -1,480 +1,2787 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>المساعد المؤسسي</title>
+<title>مساحة العمل الذكية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@200;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ===================== الرموز التصميمية ===================== */
+
   :root {
-    --bg:        #07080b;
-    --panel:     linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
-    --surface:   rgba(255,255,255,.035);
-    --surface-2: rgba(255,255,255,.022);
-    --border:    rgba(255,255,255,.065);
-    --border-2:  rgba(255,255,255,.16);
-    --text:      #e9ecf4;
-    --strong:    #f4f6fb;
-    --muted:     #8b93a7;
-    --dim:       #5c6479;
-    --purple:    #8b7cff;
-    --green:     #5fd0a8;
-    --red:       #ff8f8f;
-    --input-bg:  rgba(13,14,20,.92);
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: Manrope, system-ui, sans-serif;
+    /* الأسطح — رمادي محايد، لا تدرّجات ثقيلة */
+    --bg:         #0e1014;
+    --surface:    #16191f;
+    --surface-2:  #1c2028;
+    --surface-3:  #232833;
+    --border:     #262b34;
+    --border-2:   #343b47;
+
+    /* النص */
+    --text:       #e6e9ef;
+    --strong:     #f5f7fa;
+    --muted:      #9aa3b2;
+    --dim:        #6b7382;
+
+    /* لون واحد أساسي — الإفراط في الألوان يشتّت */
+    --accent:     #5b7cfa;
+    --accent-dim: #3f5bc4;
+    --accent-bg:  rgba(91,124,250,.10);
+    --accent-br:  rgba(91,124,250,.28);
+
+    /* حالات */
+    --ok:      #3fb984;  --ok-bg:   rgba(63,185,132,.10);  --ok-br:   rgba(63,185,132,.26);
+    --warn:    #d9a441;  --warn-bg: rgba(217,164,65,.10);  --warn-br: rgba(217,164,65,.26);
+    --danger:  #e06c6c;  --dan-bg:  rgba(224,108,108,.10); --dan-br:  rgba(224,108,108,.26);
+    --info:    #4fa8c4;  --info-bg: rgba(79,168,196,.10);  --info-br: rgba(79,168,196,.26);
+
+    /* المسافات — سلّم ثابت */
+    --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+    --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px;
+
+    /* الاستدارة */
+    --r1: 6px;  --r2: 10px; --r3: 14px; --r4: 18px;
+
+    /* الظل — خفيف، لا توهّج */
+    --sh1: 0 1px 2px rgba(0,0,0,.24);
+    --sh2: 0 4px 12px rgba(0,0,0,.28);
+    --sh3: 0 12px 32px rgba(0,0,0,.36);
+
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
+
+    --nav-w: 248px;
+    --topbar-h: 60px;
   }
 
   [data-theme="light"] {
-    --bg:        #f6f7fb;
-    --panel:     linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6));
-    --surface:   rgba(20,22,29,.035);
-    --surface-2: rgba(20,22,29,.025);
-    --border:    rgba(20,22,29,.10);
-    --border-2:  rgba(20,22,29,.22);
-    --text:      #1b1e27;
-    --strong:    #0d0f15;
-    --muted:     #5a6273;
-    --dim:       #858da0;
-    --purple:    #6a56e8;
-    --green:     #1f9d72;
-    --red:       #d0463f;
-    --input-bg:  rgba(255,255,255,.94);
+    --bg:         #f7f8fa;
+    --surface:    #ffffff;
+    --surface-2:  #f2f4f7;
+    --surface-3:  #e9ecf1;
+    --border:     #e2e6ec;
+    --border-2:   #cfd5de;
+
+    --text:       #1f242d;
+    --strong:     #0d1117;
+    --muted:      #5b6472;
+    --dim:        #858d9a;
+
+    --accent:     #3a5bd9;
+    --accent-dim: #2d48b0;
+    --accent-bg:  rgba(58,91,217,.07);
+    --accent-br:  rgba(58,91,217,.22);
+
+    --ok:      #1f8f61;  --ok-bg:   rgba(31,143,97,.08);
+    --warn:    #a8762a;  --warn-bg: rgba(168,118,42,.08);
+    --danger:  #c0453f;  --dan-bg:  rgba(192,69,63,.08);
+    --info:    #2b7f99;  --info-bg: rgba(43,127,153,.08);
+
+    --sh1: 0 1px 2px rgba(16,24,40,.05);
+    --sh2: 0 4px 12px rgba(16,24,40,.07);
+    --sh3: 0 12px 32px rgba(16,24,40,.10);
   }
 
-  * { box-sizing: border-box; }
+  /* ===================== الأساس ===================== */
 
-  /* خاصية hidden تعمل بـ display:none من ورقة المتصفح،
-     وأي قاعدة display معلنة تلغيها. هذي تضمن أسبقيتها. */
+  * { box-sizing: border-box; }
   [hidden] { display: none !important; }
 
   html, body {
-    margin: 0; padding: 0; height: 100%;
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
     background: var(--bg); color: var(--text);
-    font-family: var(--sans);
+    font-family: var(--sans); font-size: 14px; line-height: 1.6;
     -webkit-font-smoothing: antialiased;
-    transition: background .3s, color .3s;
   }
 
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  button, input, textarea, select { font-family: inherit; font-size: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent); text-decoration: none; }
+
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
   ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 20px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
   ::-webkit-scrollbar-track { background: transparent; }
 
-  button, input, textarea { font-family: var(--sans); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  @keyframes breathe { 0%,100% { transform:scale(1); opacity:.92; } 50% { transform:scale(1.055); opacity:1; } }
-  @keyframes halo    { to { transform: rotate(360deg); } }
-  @keyframes rise    { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-  @keyframes dots    { 0%,80%,100% { opacity:.2; transform:translateY(0); } 40% { opacity:1; transform:translateY(-3px); } }
+  code, pre, .ltr { direction: ltr; text-align: left; font-family: var(--mono); }
 
-  /* ---------- التخطيط ---------- */
+  @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes pulse   { 0%,100% { opacity: .45; } 50% { opacity: .85; } }
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  @keyframes dots    { 0%,80%,100% { opacity:.25; } 40% { opacity:1; } }
 
-  #shell {
-    display: flex; height: 100vh;
-    background:
-      radial-gradient(1100px 620px at 82% -10%, rgba(110,96,255,.13), transparent 62%),
-      radial-gradient(900px 520px at 12% 8%, rgba(64,190,214,.09), transparent 60%),
-      var(--bg);
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
 
-  aside {
-    width: 296px; flex: none;
-    border-left: 1px solid var(--border);
-    background: var(--panel);
-    backdrop-filter: blur(20px);
-    display: flex; flex-direction: column; overflow: hidden;
-  }
+  /* ===================== النصوص ===================== */
 
-  main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-
-  /* ---------- الشريط الجانبي ---------- */
-
-  .brand { padding: 18px 16px 12px; display: flex; align-items: center; gap: 11px; }
-  .brand .mark {
-    width: 30px; height: 30px; flex: none; border-radius: 10px;
-    background: conic-gradient(from 140deg, #6f5cff, #46c7e8, #a78bff, #6f5cff);
-    display: grid; place-items: center;
-  }
-  .brand .mark span { width: 11px; height: 11px; border-radius: 4px; background: var(--bg); }
-  .brand .name { font: 700 15px/1 var(--sans); letter-spacing: .04em; }
-  .brand .sub  { font: 400 10px/1 var(--mono); color: var(--dim); margin-top: 3px; }
-  .brand .theme {
-    margin-right: auto; width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 14px;
-  }
-  .brand .theme:hover { color: var(--text); border-color: var(--border-2); }
-
-  .side-body { flex: 1; overflow-y: auto; padding: 0 15px 14px; }
-
+  .h1 { font: 600 22px/1.35 var(--sans); color: var(--strong); letter-spacing: -.01em; }
+  .h2 { font: 600 17px/1.4  var(--sans); color: var(--strong); }
+  .h3 { font: 600 14px/1.45 var(--sans); color: var(--strong); }
+  .body { font: 400 14px/1.7 var(--sans); color: var(--text); }
+  .sm  { font: 400 13px/1.6 var(--sans); color: var(--muted); }
+  .xs  { font: 400 12px/1.5 var(--sans); color: var(--dim); }
+  .num { font: 300 30px/1.15 var(--sans); color: var(--strong); letter-spacing: -.02em; }
   .label {
-    display: flex; align-items: center; gap: 7px;
-    font: 500 10px/1 var(--mono); letter-spacing: .12em;
-    color: var(--dim); margin: 17px 0 9px;
+    display: block; font: 600 11px/1 var(--sans); letter-spacing: .06em;
+    color: var(--dim); text-transform: uppercase; margin-bottom: var(--s2);
   }
-  .label .n { margin-right: auto; opacity: .7; }
 
-  .seg { display: flex; gap: 5px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; padding: 4px; }
-  .seg button {
-    flex: 1; padding: 9px 8px; border: 0; border-radius: 8px; cursor: pointer;
-    background: transparent; color: var(--muted); font: 500 12px/1 var(--sans);
-    transition: background .2s, color .2s;
+  /* ===================== المكوّنات ===================== */
+
+  /* --- الأزرار --- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+    padding: 9px 15px; border-radius: var(--r2); border: 1px solid var(--border-2);
+    background: var(--surface-2); color: var(--text);
+    font: 500 13.5px/1 var(--sans); white-space: nowrap;
+    transition: background .15s, border-color .15s, opacity .15s;
   }
-  .seg button.on { background: rgba(126,104,255,.18); color: var(--purple); }
+  .btn:hover  { background: var(--surface-3); border-color: var(--dim); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn:disabled:hover { background: var(--surface-2); border-color: var(--border-2); }
 
-  .drop {
-    border: 1px dashed rgba(139,124,255,.34); border-radius: 12px;
-    background: rgba(126,104,255,.05);
-    padding: 16px 12px; text-align: center; cursor: pointer;
-    transition: border-color .2s, background .2s;
-  }
-  .drop:hover, .drop.over { border-color: var(--purple); background: rgba(126,104,255,.12); }
-  .drop .big  { font: 400 17px/1 var(--mono); color: var(--purple); }
-  .drop .cap  { font: 400 12px/1.6 var(--sans); color: var(--muted); margin-top: 6px; }
-  .drop .hint { font: 400 10px/1 var(--mono); color: var(--dim); margin-top: 4px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+  .btn.ghost   { background: transparent; border-color: var(--border); color: var(--muted); }
+  .btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+  .btn.ok      { color: var(--ok); border-color: var(--ok-br); background: var(--ok-bg); }
+  .btn.danger  { color: var(--danger); border-color: var(--dan-br); background: var(--dan-bg); }
+  .btn.sm      { padding: 6px 11px; font-size: 12.5px; border-radius: var(--r1); }
+  .btn.block   { width: 100%; }
+  .btn.icon    { padding: 7px; width: 32px; height: 32px; }
 
-  .search {
-    width: 100%; padding: 9px 11px; margin-bottom: 9px;
-    border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2);
-    color: var(--text); font: 400 12.5px/1 var(--sans); outline: none; direction: rtl;
-  }
-  .search:focus { border-color: rgba(139,124,255,.5); }
-  select.search { cursor: pointer; appearance: none; padding-left: 26px; }
-  select.search option { background: #14161d; color: #e9ecf4; }
-
-  .doc {
-    display: flex; align-items: center; gap: 9px;
-    padding: 9px 11px; margin-bottom: 6px;
-    border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
-  }
-  .doc .kind {
-    font: 500 9.5px/1 var(--mono); color: var(--purple);
-    border: 1px solid rgba(139,124,255,.28); border-radius: 5px; padding: 5px 6px; flex: none;
-  }
-  .doc .meta { flex: 1; min-width: 0; }
-  .doc .fname { font: 500 12px/1.35 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .doc .chunks { font: 400 10px/1 var(--mono); color: var(--dim); margin-top: 4px; }
-  .doc .del { background: transparent; border: 0; color: var(--dim); font-size: 13px; cursor: pointer; padding: 4px; border-radius: 6px; flex: none; }
-  .doc .del:hover { color: var(--red); background: rgba(255,143,143,.12); }
-
-  .empty { font: 400 12px/1.7 var(--sans); color: var(--dim); padding: 4px 2px; }
-
-  .hist {
-    display: flex; align-items: center; gap: 8px; width: 100%;
-    padding: 9px 10px; margin-bottom: 4px; cursor: pointer; text-align: right;
-    border: 1px solid transparent; border-radius: 9px; background: transparent;
-    color: var(--muted); font: 400 12.5px/1.4 var(--sans);
-  }
-  .hist:hover { background: var(--surface); color: var(--text); }
-  .hist.on { border-color: rgba(139,124,255,.28); background: rgba(126,104,255,.10); color: var(--text); }
-  .hist .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .hist .x { background: transparent; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 2px; }
-  .hist .x:hover { color: var(--red); }
-
-  .side-foot { border-top: 1px solid var(--border); padding: 12px 15px; display: flex; flex-direction: column; gap: 8px; }
-
-  .ghost {
-    width: 100%; padding: 10px; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 10px; background: transparent;
-    color: var(--muted); font: 500 12.5px/1 var(--sans); transition: color .2s, border-color .2s;
-  }
-  .ghost:hover { color: var(--text); border-color: var(--border-2); }
-
-  .status { display: flex; align-items: center; gap: 7px; font: 400 10.5px/1 var(--mono); color: var(--dim); }
-  .status i { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); }
-  .status.ok i  { background: var(--green); box-shadow: 0 0 8px var(--green); }
-  .status.bad i { background: var(--red); }
-
-  /* ---------- لوحة الإحصاءات ---------- */
-
-  .stats-btn {
-    width: 100%; padding: 10px; cursor: pointer; margin-bottom: 8px;
-    border: 1px solid var(--border); border-radius: 10px; background: transparent;
-    color: var(--muted); font: 500 12.5px/1 var(--sans); transition: color .2s, border-color .2s;
-  }
-  .stats-btn:hover { color: var(--text); border-color: var(--border-2); }
-
-  .modal {
-    position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
-    background: rgba(4,5,8,.72); backdrop-filter: blur(8px); padding: 24px;
-    animation: rise .25s ease both;
-  }
-  .modal .sheet {
-    width: 100%; max-width: 720px; max-height: 86vh; overflow-y: auto;
-    border: 1px solid var(--border); border-radius: 18px; background: var(--input-bg);
-    padding: 22px 24px 26px;
-  }
-  .modal .head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-  .modal .head h2 { margin: 0; font: 600 17px/1 var(--sans); color: var(--strong); }
-  .modal .head .x {
-    margin-right: auto; width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
-    border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 15px;
-  }
-  .modal .head .x:hover { color: var(--red); border-color: rgba(255,143,143,.4); }
-
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-  .kpi {
-    border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); padding: 14px;
-  }
-  .kpi .v { font: 200 26px/1.1 var(--sans); color: var(--strong); }
-  .kpi .k { font: 400 10.5px/1.4 var(--mono); color: var(--dim); margin-top: 7px; }
-  .kpi.warn .v { color: var(--red); }
-
-  .bars { margin-top: 10px; }
-  .bar { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
-  .bar .nm { font: 400 11.5px/1 var(--mono); color: var(--muted); width: 170px; flex: none; direction: ltr; text-align: right; }
-  .bar .track { flex: 1; height: 7px; border-radius: 6px; background: var(--surface); overflow: hidden; }
-  .bar .fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--purple), #5cc6e6); }
-  .bar .ct { font: 500 11px/1 var(--mono); color: var(--muted); width: 30px; flex: none; text-align: left; }
-
-  .rows { margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-  .row-i { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--border); }
-  .row-i:last-child { border-bottom: 0; }
-  .row-i .q { flex: 1; min-width: 0; font: 400 12.5px/1.4 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .row-i .d { font: 400 10.5px/1 var(--mono); color: var(--dim); flex: none; }
-  .row-i .o { font: 500 9.5px/1 var(--mono); padding: 4px 7px; border-radius: 5px; flex: none; }
-  .o.ok      { color: var(--green);  border: 1px solid rgba(95,208,168,.28); }
-  .o.refused { color: var(--dim);    border: 1px solid var(--border); }
-  .o.blocked { color: var(--red);    border: 1px solid rgba(255,143,143,.3); }
-  .o.error   { color: var(--red);    border: 1px solid rgba(255,143,143,.3); }
-
-  /* ---------- المحادثة ---------- */
-
-  #scroll { flex: 1; min-height: 0; overflow-y: auto; }
-
-  .welcome { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 34px; padding: 48px 40px 24px; }
-  .orb { position: relative; width: 118px; height: 118px; display: grid; place-items: center; }
-  .orb .glow { position: absolute; inset: -34px; border-radius: 50%; background: radial-gradient(circle, rgba(122,102,255,.20), transparent 66%); filter: blur(14px); animation: breathe 6.5s ease-in-out infinite; }
-  .orb .ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(122,102,255,.65), rgba(70,199,232,.35), rgba(167,139,255,.6), rgba(122,102,255,.65)); filter: blur(9px); animation: halo 18s linear infinite; }
-  .orb .core { position: relative; width: 86px; height: 86px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.92), rgba(160,146,255,.55) 34%, rgba(46,42,86,.9) 68%, #0a0b10 100%); box-shadow: 0 24px 60px -18px rgba(110,96,255,.7); animation: breathe 5.5s ease-in-out infinite; }
-
-  .welcome h1 { margin: 0; font-weight: 200; font-size: clamp(25px, 3.6vw, 40px); line-height: 1.2; letter-spacing: -.02em; color: var(--strong); text-align: center; }
-  .welcome p { margin: 11px 0 0; font: 400 15px/1.75 var(--sans); color: var(--muted); text-align: center; max-width: 470px; }
-
-  .suggest { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 10px; width: 100%; max-width: 750px; }
-  .suggest button {
-    text-align: right; padding: 15px 16px; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 13px; background: var(--surface);
-    color: var(--text); font: 500 13.5px/1.55 var(--sans);
-    transition: transform .22s, border-color .22s, box-shadow .22s;
-  }
-  .suggest button:hover { transform: translateY(-3px); border-color: rgba(139,124,255,.45); box-shadow: 0 18px 40px -22px rgba(122,102,255,.9); }
-  .suggest .tag { display: block; font: 500 9.5px/1 var(--mono); letter-spacing: .1em; color: var(--purple); margin-bottom: 8px; }
-
-  .thread { padding: 28px 40px 8px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
-  .turn { width: 100%; max-width: 780px; display: flex; flex-direction: column; gap: 8px; animation: rise .45s ease both; }
-  .turn.user { align-items: flex-start; }
-
-  .bubble {
-    max-width: 78%; padding: 13px 17px; border-radius: 16px 4px 16px 16px;
+  /* --- البطاقات --- */
+  .card {
     background: var(--surface); border: 1px solid var(--border);
-    font: 400 14.5px/1.8 var(--sans); white-space: pre-wrap;
+    border-radius: var(--r3); padding: var(--s5);
   }
-  .who { display: flex; align-items: center; gap: 9px; }
-  .who .dot { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.9), rgba(150,136,255,.6) 40%, rgba(24,22,48,1) 100%); box-shadow: 0 0 18px -4px rgba(122,102,255,.8); }
-  .who .nm { font: 600 12.5px/1 var(--sans); }
-  .who .ts { font: 400 10px/1 var(--mono); color: var(--dim); }
+  .card.flat  { background: var(--surface-2); }
+  .card.pad-0 { padding: 0; overflow: hidden; }
+  .card-head {
+    display: flex; align-items: center; gap: var(--s3);
+    padding: var(--s4) var(--s5); border-bottom: 1px solid var(--border);
+  }
+  .card-head .grow { flex: 1; min-width: 0; }
+  .card-body { padding: var(--s5); }
 
-  .answer { font: 400 15px/1.9 var(--sans); white-space: pre-wrap; }
+  /* --- بطاقة مؤشر --- */
+  .metric { display: flex; flex-direction: column; gap: var(--s2); }
+  .metric .k { font: 500 12px/1 var(--sans); color: var(--muted); }
+  .metric .v { font: 300 28px/1.15 var(--sans); color: var(--strong); letter-spacing: -.02em; }
+  .metric .d { font: 400 11.5px/1.4 var(--sans); color: var(--dim); }
+  .metric.accent .v { color: var(--accent); }
+  .metric.ok .v     { color: var(--ok); }
+  .metric.warn .v   { color: var(--warn); }
 
-  .typing { display: flex; gap: 4px; padding: 6px 0; }
-  .typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--purple); animation: dots 1.3s infinite; }
+  /* --- شارات الحالة --- */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 20px;
+    font: 500 11.5px/1.5 var(--sans); white-space: nowrap;
+    border: 1px solid var(--border-2); color: var(--muted); background: var(--surface-2);
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.pending   { color: var(--warn);   border-color: var(--warn-br); background: var(--warn-bg); }
+  .badge.approved  { color: var(--ok);     border-color: var(--ok-br);   background: var(--ok-bg); }
+  .badge.rejected  { color: var(--danger); border-color: var(--dan-br);  background: var(--dan-bg); }
+  .badge.cancelled { color: var(--dim); }
+  .badge.info      { color: var(--info);   border-color: var(--info-br); background: var(--info-bg); }
+  .badge.accent    { color: var(--accent); border-color: var(--accent-br); background: var(--accent-bg); }
+  .badge.plain::before { display: none; }
+
+  /* --- بطاقة إجراء --- */
+  .action {
+    display: flex; align-items: center; gap: var(--s3); width: 100%; text-align: right;
+    padding: var(--s4); border-radius: var(--r2);
+    border: 1px solid var(--border); background: var(--surface);
+    transition: border-color .15s, background .15s;
+  }
+  .action:hover { border-color: var(--accent-br); background: var(--accent-bg); }
+  .action .ic {
+    width: 34px; height: 34px; flex: none; border-radius: var(--r2);
+    display: grid; place-items: center; font-size: 15px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .action .tx { flex: 1; min-width: 0; }
+  .action .t  { font: 600 13.5px/1.4 var(--sans); color: var(--text); }
+  .action .s  { font: 400 12px/1.5 var(--sans); color: var(--dim); margin-top: 2px; }
+
+  /* --- الجداول --- */
+  .table { width: 100%; border-collapse: collapse; }
+  .table th {
+    text-align: right; padding: var(--s3) var(--s4);
+    font: 600 11.5px/1 var(--sans); letter-spacing: .04em; color: var(--dim);
+    text-transform: uppercase; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .table td {
+    padding: var(--s4); border-bottom: 1px solid var(--border);
+    font: 400 13.5px/1.5 var(--sans); vertical-align: middle;
+  }
+  .table tr:last-child td { border-bottom: 0; }
+  .table tbody tr:hover { background: var(--surface-2); }
+  .table .nowrap { white-space: nowrap; }
+  .table .end { text-align: left; }
+
+  /* --- الخط الزمني --- */
+  .timeline { position: relative; padding-right: var(--s5); }
+  .timeline::before {
+    content: ""; position: absolute; top: 6px; bottom: 6px; right: 5px;
+    width: 1px; background: var(--border);
+  }
+  .tl-item { position: relative; padding-bottom: var(--s5); }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-item::before {
+    content: ""; position: absolute; right: -19px; top: 6px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--border-2);
+  }
+  .tl-item.ok::before      { border-color: var(--ok); }
+  .tl-item.warn::before    { border-color: var(--warn); }
+  .tl-item.danger::before  { border-color: var(--danger); }
+  .tl-item .t  { font: 500 13px/1.5 var(--sans); }
+  .tl-item .ts { font: 400 11.5px/1 var(--mono); color: var(--dim); margin-top: 3px; }
+
+  /* --- الحالات: فارغ · تحميل · خطأ --- */
+  .state { padding: var(--s7) var(--s5); text-align: center; }
+  .state .ic { font-size: 26px; opacity: .4; margin-bottom: var(--s3); }
+  .state .t  { font: 600 14px/1.5 var(--sans); color: var(--muted); }
+  .state .s  { font: 400 13px/1.6 var(--sans); color: var(--dim); margin-top: var(--s2); }
+  .state .btn { margin-top: var(--s4); }
+  .state.error .t { color: var(--danger); }
+
+  .skel {
+    background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2));
+    background-size: 200% 100%; border-radius: var(--r1);
+    animation: pulse 1.4s ease-in-out infinite; height: 13px; margin-bottom: var(--s2);
+  }
+  .skel.w-40 { width: 40%; } .skel.w-60 { width: 60%; } .skel.w-80 { width: 80%; }
+  .skel.tall { height: 46px; border-radius: var(--r2); }
+
+  .spinner {
+    width: 15px; height: 15px; border-radius: 50%; display: inline-block;
+    border: 2px solid var(--border-2); border-top-color: var(--accent);
+    animation: spin .7s linear infinite;
+  }
+
+  /* --- نافذة الحوار --- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+    padding: var(--s5); background: rgba(6,8,12,.62); backdrop-filter: blur(3px);
+    animation: fade-in .16s ease both;
+  }
+  .dialog {
+    width: 100%; max-width: 440px; max-height: 86vh; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r4); box-shadow: var(--sh3);
+  }
+  .dialog.wide { max-width: 700px; }
+  .dialog-head {
+    display: flex; align-items: center; gap: var(--s3);
+    padding: var(--s5) var(--s5) var(--s3);
+  }
+  .dialog-head .h2 { flex: 1; }
+  .dialog-body { padding: 0 var(--s5) var(--s5); }
+  .dialog-foot {
+    display: flex; gap: var(--s2); justify-content: flex-start;
+    padding: var(--s4) var(--s5); border-top: 1px solid var(--border);
+  }
+
+  /* --- الحقول --- */
+  .field { margin-bottom: var(--s4); }
+  .input, .select, .textarea {
+    width: 100%; padding: 10px 13px; border-radius: var(--r2);
+    border: 1px solid var(--border-2); background: var(--surface-2); color: var(--text);
+    outline: none; transition: border-color .15s;
+  }
+  .input:focus, .select:focus, .textarea:focus { border-color: var(--accent); }
+  .input::placeholder { color: var(--dim); }
+  .select { cursor: pointer; }
+  .textarea { resize: vertical; min-height: 74px; line-height: 1.6; }
+
+  .seg { display: flex; gap: var(--s1); padding: var(--s1); border-radius: var(--r2); background: var(--surface-2); border: 1px solid var(--border); }
+  .seg button { flex: 1; padding: 7px 10px; border: 0; border-radius: var(--r1); background: transparent; color: var(--muted); font: 500 12.5px/1 var(--sans); }
+  .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--sh1); }
+
+  /* --- الإشعارات العائمة --- */
+  .toasts { position: fixed; bottom: var(--s5); left: var(--s5); z-index: 300; display: flex; flex-direction: column; gap: var(--s2); }
+  .toast {
+    display: flex; align-items: center; gap: var(--s3); min-width: 240px; max-width: 380px;
+    padding: 11px 15px; border-radius: var(--r2);
+    background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh2);
+    font: 500 13px/1.5 var(--sans); animation: fade-in .2s ease both;
+  }
+  .toast.ok   { border-color: var(--ok-br);  color: var(--ok); }
+  .toast.err  { border-color: var(--dan-br); color: var(--danger); }
+
+  /* --- شبكات --- */
+  .grid { display: grid; gap: var(--s4); }
+  .g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .row { display: flex; align-items: center; gap: var(--s3); }
+  .row.wrap { flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+  .stack { display: flex; flex-direction: column; gap: var(--s4); }
+  .stack.tight { gap: var(--s2); }
+  .trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ===================== التخطيط ===================== */
+
+  #shell { display: flex; height: 100%; overflow: hidden; }
+
+  /* --- التنقّل الجانبي --- */
+  nav.side {
+    width: var(--nav-w); flex: none; height: 100%; min-height: 0;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--surface); border-left: 1px solid var(--border);
+  }
+  .brand { flex: none; display: flex; align-items: center; gap: var(--s3); padding: var(--s5) var(--s5) var(--s4); }
+  .brand .mark {
+    width: 32px; height: 32px; flex: none; border-radius: var(--r2);
+    background: var(--accent); color: #fff; display: grid; place-items: center;
+    font: 700 14px/1 var(--sans);
+  }
+  .brand .nm { font: 600 14.5px/1.2 var(--sans); color: var(--strong); }
+  .brand .sb { font: 400 11px/1 var(--sans); color: var(--dim); margin-top: 3px; }
+
+  .nav-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 var(--s3) var(--s3); }
+  .nav-group { margin-bottom: var(--s4); }
+  .nav-group > .label { padding: 0 var(--s3); margin-bottom: var(--s2); }
+
+  .nav-item {
+    display: flex; align-items: center; gap: var(--s3); width: 100%; text-align: right;
+    padding: 9px var(--s3); margin-bottom: 2px; border-radius: var(--r2);
+    border: 0; background: transparent; color: var(--muted);
+    font: 500 13.5px/1.4 var(--sans); transition: background .15s, color .15s;
+  }
+  .nav-item:hover { background: var(--surface-2); color: var(--text); }
+  .nav-item.on { background: var(--accent-bg); color: var(--accent); }
+  .nav-item .ic { width: 18px; flex: none; text-align: center; font-size: 14px; opacity: .85; }
+  .nav-item .tx { flex: 1; min-width: 0; }
+  .nav-item .ct {
+    font: 600 11px/1 var(--sans); padding: 3px 7px; border-radius: 10px;
+    background: var(--accent); color: #fff;
+  }
+
+  .nav-foot { flex: none; border-top: 1px solid var(--border); padding: var(--s3); }
+  .who { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); border-radius: var(--r2); }
+  .who .av {
+    width: 30px; height: 30px; flex: none; border-radius: 50%;
+    display: grid; place-items: center; font: 600 12px/1 var(--sans);
+    background: var(--surface-3); color: var(--text);
+  }
+  .who .nm { font: 600 12.5px/1.3 var(--sans); }
+  .who .rl { font: 400 11px/1 var(--sans); color: var(--dim); margin-top: 2px; }
+
+  /* --- منطقة المحتوى --- */
+  main.work { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    flex: none; height: var(--topbar-h);
+    display: flex; align-items: center; gap: var(--s4);
+    padding: 0 var(--s6); border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .topbar .title { font: 600 15px/1.3 var(--sans); color: var(--strong); }
+  .topbar .sub   { font: 400 12px/1 var(--sans); color: var(--dim); margin-top: 2px; }
+  .topbar .menu { display: none; }
+
+  .page { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .page-in { max-width: 1120px; margin: 0 auto; padding: var(--s6); }
+  .page-in.full { max-width: none; }
+
+  /* --- المساعد: تخطيط خاص --- */
+  .chat-wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .chat-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .chat-in { max-width: 780px; margin: 0 auto; padding: var(--s6) var(--s5) var(--s2); display: flex; flex-direction: column; gap: var(--s5); }
+
+  .turn { animation: fade-in .3s ease both; }
+  .turn.me { display: flex; justify-content: flex-start; }
+  .bubble {
+    max-width: 76%; padding: 11px 15px; border-radius: var(--r3) var(--r1) var(--r3) var(--r3);
+    background: var(--accent-bg); border: 1px solid var(--accent-br);
+    font: 400 14px/1.75 var(--sans); white-space: pre-wrap;
+  }
+  .from { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+  .from .av { width: 22px; height: 22px; border-radius: var(--r1); background: var(--accent); color: #fff; display: grid; place-items: center; font: 700 10px/1 var(--sans); }
+  .from .nm { font: 600 12.5px/1 var(--sans); }
+  .from .ts { font: 400 11px/1 var(--mono); color: var(--dim); }
+
+  .answer { font: 400 14.5px/1.85 var(--sans); white-space: pre-wrap; }
+  .steps { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s3); }
+  .step {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 20px;
+    font: 500 11.5px/1.5 var(--sans); color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .step.run::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
+  .step.done::before { content: "✓"; color: var(--ok); font-size: 10px; }
+
+  .typing { display: inline-flex; gap: 4px; padding: 6px 0; }
+  .typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--dim); animation: dots 1.3s infinite; }
   .typing i:nth-child(2) { animation-delay: .18s; }
   .typing i:nth-child(3) { animation-delay: .36s; }
 
-  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
-  .chip { font: 400 10.5px/1.5 var(--mono); border-radius: 7px; padding: 6px 10px; white-space: nowrap; color: var(--green); border: 1px solid rgba(95,208,168,.28); }
+  .turn-acts { display: flex; gap: var(--s2); margin-top: var(--s3); }
 
-  .acts { display: flex; gap: 6px; margin-top: 4px; }
-  .acts button {
-    padding: 7px 11px; cursor: pointer; border-radius: 8px;
-    border: 1px solid var(--border); background: transparent;
-    color: var(--dim); font: 400 11.5px/1 var(--sans); transition: color .2s, border-color .2s;
+  /* --- مُركّب الإدخال --- */
+  .composer { flex: none; padding: var(--s3) var(--s5) var(--s4); }
+  .composer-in { max-width: 780px; margin: 0 auto; }
+  .composer .box {
+    border: 1px solid var(--border-2); border-radius: var(--r3);
+    background: var(--surface); padding: var(--s3) var(--s4) var(--s2);
+    transition: border-color .15s;
   }
-  .acts button:hover { color: var(--text); border-color: var(--border-2); }
-
-  .srcs { margin-top: 4px; }
-  .srcs > summary {
-    cursor: pointer; list-style: none;
-    font: 500 10.5px/1 var(--mono); letter-spacing: .08em; color: var(--dim); padding: 7px 0;
+  .composer .box:focus-within { border-color: var(--accent); }
+  .composer textarea {
+    width: 100%; resize: none; border: 0; outline: none; background: transparent;
+    color: var(--text); font: 400 14.5px/1.7 var(--sans); max-height: 150px;
   }
-  .srcs > summary::-webkit-details-marker { display: none; }
-  .srcs > summary:hover { color: var(--muted); }
-
-  .src { border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); margin-top: 8px; overflow: hidden; }
-  .src > summary { cursor: pointer; list-style: none; padding: 11px 13px; display: flex; align-items: center; gap: 9px; }
-  .src > summary::-webkit-details-marker { display: none; }
-  .src > summary:hover { background: var(--surface); }
-  .src .n { font: 500 10px/1 var(--mono); color: var(--purple); border: 1px solid rgba(139,124,255,.3); border-radius: 5px; padding: 4px 6px; }
-  .src .f { font: 500 12px/1.4 var(--sans); }
-  .src .l { font: 400 10.5px/1 var(--mono); color: var(--dim); margin-right: auto; }
-  .src .t { font: 400 12.5px/1.8 var(--sans); color: var(--muted); white-space: pre-wrap; padding: 0 13px 13px; }
-
-  /* ---------- الإدخال ---------- */
-
-  .composer { padding: 12px 40px 20px; display: flex; justify-content: center; }
-  .composer .frame {
-    width: 100%; max-width: 780px; border-radius: 19px; padding: 1px;
-    background: linear-gradient(140deg, rgba(139,124,255,.55), rgba(92,198,230,.28) 45%, rgba(255,255,255,.06) 75%);
-    box-shadow: 0 26px 60px -30px rgba(112,96,255,.6);
+  .composer .bar { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s2); }
+  .composer .hint { font: 400 11.5px/1 var(--sans); color: var(--dim); }
+  .send {
+    width: 30px; height: 30px; flex: none; border-radius: var(--r2); border: 0;
+    background: var(--accent); color: #fff; font: 600 14px/1 var(--sans);
   }
-  .composer .inner { border-radius: 18px; background: var(--input-bg); backdrop-filter: blur(22px); padding: 13px 15px 10px; display: flex; flex-direction: column; gap: 10px; }
-  .composer textarea { width: 100%; resize: none; background: transparent; border: 0; outline: none; color: var(--text); font: 400 15px/1.7 var(--sans); max-height: 160px; direction: rtl; text-align: right; }
-  .composer .row { display: flex; align-items: center; gap: 8px; }
-  .composer .mode { font: 400 11px/1 var(--mono); color: var(--dim); }
-  .send { width: 34px; height: 34px; border-radius: 11px; border: 0; cursor: pointer; background: linear-gradient(160deg, #8b7cff, #5a4ad4); color: #fff; font: 600 15px/1 var(--mono); box-shadow: 0 10px 26px -12px rgba(139,124,255,1); transition: opacity .2s; }
-  .send:disabled { opacity: .4; cursor: default; }
-  .foot { display: block; text-align: center; font: 400 10.5px/1.6 var(--mono); color: var(--dim); padding-bottom: 12px; }
+  .send:disabled { opacity: .4; }
+  .foot-note { text-align: center; font: 400 11px/1.5 var(--sans); color: var(--dim); padding-bottom: var(--s3); }
 
-  .toast {
-    position: fixed; bottom: 20px; left: 20px; z-index: 90;
-    padding: 12px 16px; border-radius: 11px; font: 500 12.5px/1.5 var(--sans);
-    border: 1px solid var(--border); background: var(--input-bg); backdrop-filter: blur(18px);
-    animation: rise .3s ease both;
+  /* --- شاشة الدخول --- */
+  #login { position: fixed; inset: 0; z-index: 250; display: grid; place-items: center; padding: var(--s5); background: var(--bg); }
+  #login .card { width: 100%; max-width: 372px; box-shadow: var(--sh2); }
+  #login .mark { width: 40px; height: 40px; border-radius: var(--r2); background: var(--accent); color: #fff; display: grid; place-items: center; font: 700 16px/1 var(--sans); margin: 0 auto var(--s4); }
+
+  /* --- الاستجابة --- */
+  @media (max-width: 1024px) { .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 860px) {
+    nav.side {
+      position: fixed; inset: 0 0 0 auto; z-index: 180;
+      transform: translateX(100%); transition: transform .2s ease; box-shadow: var(--sh3);
+    }
+    body.nav-open nav.side { transform: none; }
+    body.nav-open::after { content: ""; position: fixed; inset: 0; z-index: 170; background: rgba(6,8,12,.5); }
+    .topbar .menu { display: inline-flex; }
+    .g2, .g3, .g4 { grid-template-columns: 1fr; }
+    .page-in { padding: var(--s4); }
+    .chat-in, .composer { padding-left: var(--s4); padding-right: var(--s4); }
+    .bubble { max-width: 88%; }
   }
-  .toast.ok  { border-color: rgba(95,208,168,.45); color: var(--green); }
-  .toast.err { border-color: rgba(255,143,143,.45); color: var(--red); }
 
-  code, pre { direction: ltr; text-align: left; font-family: var(--mono); }
+  /* ===================== إضافات المرحلة 4أ ===================== */
 
-  @media (max-width: 900px) {
-    aside { display: none; }
-    .thread, .composer { padding-left: 18px; padding-right: 18px; }
+  .ic-lg { font-size: 30px; opacity: .35; }
+  .mb { margin-bottom: var(--s4); }
+  .w-label { width: 170px; }
+  .w-seg { max-width: 260px; }
+  .row.start { align-items: flex-start; }
+  .row.gap-lg { gap: var(--s5); }
+  .grid.start { align-items: start; }
+  .tight-pad { padding: var(--s3); }
+  .decide { width: 118px; flex: none; }
+  .sm-metric .v { font-size: 20px; }
+
+  .hero {
+    padding: var(--s7) var(--s6); border-radius: var(--r3);
+    border: 1px solid var(--border); background: var(--surface);
+  }
+
+  .pt-list {
+    list-style: none; padding: 0; margin: var(--s4) 0 var(--s5);
+    text-align: right; display: inline-block;
+  }
+  .pt-list li {
+    position: relative; padding-right: var(--s5); margin-bottom: var(--s2);
+    font: 400 13.5px/1.7 var(--sans); color: var(--muted);
+  }
+  .pt-list li::before {
+    content: ""; position: absolute; right: 6px; top: 10px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .7;
+  }
+
+  .dropzone {
+    border: 1px dashed var(--border-2); border-radius: var(--r3);
+    background: var(--surface-2); padding: var(--s6); text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.over { border-color: var(--accent); background: var(--accent-bg); }
+
+  .table-wrap { overflow-x: auto; }
+
+  .notice { border-width: 1px; }
+  .notice.danger { border-color: var(--dan-br); background: var(--dan-bg); }
+  .notice.danger .sm, .notice.danger .h3 { color: var(--danger); }
+  .notice.ok { border-color: var(--ok-br); background: var(--ok-bg); }
+  .notice.ok .h3 { color: var(--ok); }
+
+  .cred {
+    display: flex; flex-direction: column; gap: var(--s2); align-items: center;
+    margin: var(--s3) 0; padding: var(--s3); border-radius: var(--r2);
+    background: var(--surface); border: 1px solid var(--border);
+  }
+  .cred span { user-select: all; font-family: var(--mono); }
+  .cred .strong-mono { font-size: 15px; font-weight: 600; color: var(--strong); }
+
+  .topbar .bell { position: relative; }
+  .topbar .bell .dot {
+    position: absolute; top: 4px; left: 5px;
+    min-width: 15px; height: 15px; padding: 0 4px; border-radius: 9px;
+    background: var(--accent); color: #fff;
+    font: 600 10px/15px var(--sans); text-align: center;
+  }
+
+  @media (max-width: 860px) {
+    .decide { width: auto; flex-direction: row; }
+    .decide .btn { flex: 1; }
+    .row.gap-lg { flex-direction: column; align-items: stretch; }
+  }
+
+  .bar-label { width: 150px; flex: none; }
+  .bar-track { flex: 1; height: 7px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+  .bar-fill  { display: block; height: 100%; border-radius: 6px; background: var(--accent); }
+  .bar-count { width: 28px; text-align: left; flex: none; }
+
+  .center { text-align: center; }
+  .mt-1 { margin-top: 4px; }  .mt-2 { margin-top: var(--s2); }
+  .mt-3 { margin-top: var(--s3); } .mt-6 { margin-top: var(--s6); }
+  h1.title { margin: 0; font: 600 15px/1.3 var(--sans); color: var(--strong); }
+  #login h1, #login p { margin: 0; }
+
+  .status {
+    display: flex; align-items: center; gap: 7px; padding: var(--s2) var(--s3);
+    font: 400 11px/1 var(--mono); color: var(--dim);
+  }
+  .status i { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); flex: none; }
+  .status.ok i  { background: var(--ok); }
+  .status.bad i { background: var(--danger); }
+
+  /* ===================== الرئيسية (4ب) ===================== */
+
+  .welcome {
+    display: flex; align-items: flex-start; gap: var(--s4);
+    padding: var(--s6); border-radius: var(--r3);
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .welcome h2 { margin: 0; }
+  .welcome p  { margin: 0; }
+
+  .quick { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+
+  .g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+  /* مقياس الرصيد: مستخدم · محجوز · متاح */
+  .meter {
+    display: flex; height: 9px; border-radius: 6px; overflow: hidden;
+    background: var(--surface-3); margin: var(--s5) 0 var(--s3);
+  }
+  .meter .seg-used { background: var(--accent); }
+  .meter .seg-held { background: var(--warn); opacity: .75; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: var(--s4); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; font: 400 12px/1.5 var(--sans); color: var(--muted); }
+  .legend i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .legend .k-used { background: var(--accent); }
+  .legend .k-held { background: var(--warn); opacity: .75; }
+  .legend .k-free { background: var(--surface-3); border: 1px solid var(--border-2); }
+
+  .cta { display: flex; align-items: center; gap: var(--s5); }
+  .cta p { margin: 0; max-width: 60ch; }
+
+  @media (max-width: 1100px) { .g5 { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+  @media (max-width: 860px) {
+    .g5 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .welcome, .cta { flex-direction: column; align-items: stretch; }
+    .cta .btn { width: 100%; }
+  }
+
+  /* ===================== مساحتي وطلباتي (4ج) ===================== */
+
+  .tall-meter { height: 13px; margin: var(--s4) 0 var(--s5); }
+
+  .breakdown { display: flex; flex-direction: column; gap: var(--s2); }
+  .brow {
+    display: flex; align-items: center; gap: var(--s3);
+    padding: var(--s3) 0; border-bottom: 1px solid var(--border);
+  }
+  .brow:last-child { border-bottom: 0; }
+  .brow .key { display: inline-flex; align-items: center; gap: var(--s2); flex: 1; font: 500 13px/1.5 var(--sans); }
+  .brow .key i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .brow .key .k-used { background: var(--accent); }
+  .brow .key .k-held { background: var(--warn); opacity: .75; }
+  .brow .key .k-free { background: var(--surface-3); border: 1px solid var(--border-2); }
+  .brow .val { font: 600 15px/1 var(--sans); color: var(--strong); }
+  .brow .val .unit { font: 400 12px/1 var(--sans); color: var(--dim); }
+  .brow .pc { width: 44px; text-align: left; font: 400 12px/1 var(--mono); color: var(--dim); }
+
+  .seg.filters { flex-wrap: wrap; }
+  .seg.filters button { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 6px; }
+  .seg.filters .n {
+    font: 600 10.5px/1 var(--mono); padding: 3px 6px; border-radius: 8px;
+    background: var(--surface-3); color: var(--muted);
+  }
+  .seg.filters button.on .n { background: var(--accent); color: #fff; }
+
+  .table.compact td { padding: var(--s2) var(--s3); }
+  .danger-text { color: var(--danger); }
+  .danger-text:hover { border-color: var(--dan-br); background: var(--dan-bg); }
+
+  .quote {
+    margin-top: var(--s2); padding: var(--s3) var(--s4);
+    border-right: 3px solid var(--border-2); border-radius: 0 var(--r2) var(--r2) 0;
+    background: var(--surface-2); font: 400 13.5px/1.75 var(--sans);
+    color: var(--text); white-space: pre-wrap;
+  }
+  .quote.warn-quote { border-right-color: var(--danger); }
+
+  .mt-5 { margin-top: var(--s5); }
+
+  @media (max-width: 860px) {
+    .brow { flex-wrap: wrap; }
+    .table td, .table th { white-space: nowrap; }
+    .dialog { max-height: 92vh; }
+  }
+
+  /* ===================== المعرفة (4د) ===================== */
+
+  .k-head { display: flex; align-items: center; gap: var(--s4); }
+  .k-head p { margin: 0; }
+
+  .searchbar {
+    display: flex; align-items: center; gap: var(--s2);
+    padding: 4px 12px; border-radius: var(--r2);
+    border: 1px solid var(--border-2); background: var(--surface);
+    transition: border-color .15s;
+  }
+  .searchbar:focus-within { border-color: var(--accent); }
+  .searchbar .ic { color: var(--dim); font-size: 15px; flex: none; }
+  .input.bare {
+    border: 0; background: transparent; padding: 8px 0;
+  }
+  .input.bare:focus { border: 0; }
+  .searchbar .btn.icon { width: 26px; height: 26px; padding: 0; flex: none; }
+
+  .doc-name { max-width: 300px; font-weight: 500; }
+
+  .up-row {
+    display: flex; align-items: center; gap: var(--s3);
+    padding: 10px 13px; border-radius: var(--r2);
+    border: 1px solid var(--border); background: var(--surface-2);
+  }
+  .up-row .mk { width: 16px; text-align: center; font-weight: 700; flex: none; }
+  .up-row .nm { font: 500 13px/1.4 var(--sans); }
+  .up-row .st { flex: none; }
+  .up-row.ok   { border-color: var(--ok-br);  background: var(--ok-bg); }
+  .up-row.ok .mk, .up-row.ok .st   { color: var(--ok); }
+  .up-row.warn { border-color: var(--warn-br); background: var(--warn-bg); }
+  .up-row.warn .mk, .up-row.warn .st { color: var(--warn); }
+  .up-row.err  { border-color: var(--dan-br); background: var(--dan-bg); }
+  .up-row.err .mk, .up-row.err .st  { color: var(--danger); }
+
+  @media (max-width: 860px) {
+    .k-head { flex-direction: column; align-items: stretch; gap: var(--s2); }
+    .doc-name { max-width: 180px; }
+  }
+
+  /* ===================== التنبيهات ومساحة المدير (4هـ) ===================== */
+
+  .al-list { list-style: none; margin: 0; padding: 0; }
+  .al-item {
+    display: flex; align-items: flex-start; gap: var(--s3);
+    padding: var(--s4); border-bottom: 1px solid var(--border);
+    border-right: 3px solid var(--accent);
+  }
+  .al-item:last-child { border-bottom: 0; }
+  .al-item.seen { border-right-color: transparent; opacity: .72; }
+  .al-item .at { font: 400 11px/1 var(--mono); color: var(--dim); margin-top: 6px; }
+
+  .notice.warn-notice { border-color: var(--warn-br); background: var(--warn-bg); }
+  .notice.warn-notice .sm { color: var(--warn); }
+
+  .neg { color: var(--danger); font-weight: 600; }
+
+  @media (max-width: 860px) {
+    .al-item { flex-wrap: wrap; }
+    .al-item .btn { width: 100%; }
   }
 </style>
 </head>
 <body>
 
-<div id="shell">
+<div id="login">
+  <div class="card">
+    <div class="mark" aria-hidden="true">م</div>
+    <h1 class="h2 center">مساحة العمل الذكية</h1>
+    <p class="sm center mt-1">سجّل دخولك للمتابعة</p>
 
-  <aside>
+    <div class="mt-6">
+      <div class="field">
+        <label class="label" for="lgUser">اسم المستخدم</label>
+        <input class="input ltr" id="lgUser" autocomplete="username">
+      </div>
+      <div class="field">
+        <label class="label" for="lgPass">كلمة المرور</label>
+        <input class="input ltr" id="lgPass" type="password" autocomplete="current-password">
+      </div>
+      <button class="btn primary block" id="lgGo">دخول</button>
+      <div id="lgErr" class="mt-3" hidden></div>
+    </div>
+  </div>
+</div>
+
+<div id="shell" hidden>
+
+  <nav class="side" aria-label="التنقّل الرئيسي">
     <div class="brand">
-      <div class="mark"><span></span></div>
-      <div>
-        <div class="name">المساعد المؤسسي</div>
-        <div class="sub">RAG · AGENT</div>
+      <div class="mark" aria-hidden="true">م</div>
+      <div class="grow">
+        <div class="nm">مساحة العمل</div>
+        <div class="sb">المساعد المؤسسي</div>
       </div>
-      <button class="theme" id="theme" title="تبديل المظهر">☾</button>
     </div>
 
-    <div class="side-body">
-      <span class="label">أنا</span>
-      <select class="search" id="whoami">
-        <option value="">— اختر اسمك —</option>
-        <option>أحمد الشمري</option>
-        <option>نورة العتيبي</option>
-        <option>خالد الدوسري</option>
-        <option>سارة القحطاني</option>
-        <option>فهد المطيري</option>
-        <option>ريم الحربي</option>
-      </select>
+    <div class="nav-scroll" id="navList"></div>
 
-      <span class="label">وضع الإجابة</span>
-      <div class="seg">
-        <button id="mAgent" class="on">الوكيل</button>
-        <button id="mDocs">المستندات</button>
-      </div>
-
-      <span class="label">المحادثات <span class="n" id="histCount"></span></span>
-      <div id="hist"><div class="empty">لا محادثات محفوظة.</div></div>
-
-      <span class="label">رفع مستند</span>
-      <div class="drop" id="drop">
-        <div class="big">＋</div>
-        <div class="cap">اسحب ملفاً أو اضغط للاختيار</div>
-        <div class="hint">PDF · DOCX · XLSX</div>
-      </div>
-      <input type="file" id="file" multiple accept=".pdf,.docx,.xlsx" hidden>
-
-      <span class="label">المستندات <span class="n" id="docCount"></span></span>
-      <input class="search" id="docSearch" placeholder="ابحث في المستندات…">
-      <div id="docs"><div class="empty">لا توجد مستندات بعد.</div></div>
-    </div>
-
-    <div class="side-foot">
-      <button class="ghost" id="newChat">محادثة جديدة</button>
-      <button class="ghost" id="export">تصدير المحادثة</button>
-      <button class="stats-btn" id="statsBtn">📊 الإحصاءات</button>
-      <div class="status" id="status"><i></i><span>جارٍ الاتصال…</span></div>
-    </div>
-  </aside>
-
-  <main>
-    <div id="scroll">
-      <div class="welcome" id="welcome">
-        <div class="orb"><span class="glow"></span><span class="ring"></span><span class="core"></span></div>
-        <div>
-          <h1>كيف أقدر أساعدك؟</h1>
-          <p>أجيب من مستندات شركتك وقواعد بياناتها، مع ذكر المصدر.</p>
-        </div>
-        <div class="suggest" id="suggest"></div>
-      </div>
-      <div class="thread" id="thread" hidden></div>
-    </div>
-
-    <div class="composer">
-      <div class="frame">
-        <div class="inner">
-          <textarea id="input" rows="1" placeholder="اكتب سؤالك…"></textarea>
-          <div class="row">
-            <span class="mode" id="modeHint">الوكيل — يختار بين المستندات وقاعدة البيانات</span>
-            <div style="flex:1"></div>
-            <button class="send" id="send">↑</button>
-          </div>
+    <div class="nav-foot">
+      <div class="who">
+        <div class="av" id="avatar" aria-hidden="true"></div>
+        <div class="grow">
+          <div class="nm trunc" id="whoName"></div>
+          <div class="rl" id="whoRole"></div>
         </div>
       </div>
+      <button class="btn ghost block mt-2" id="logout">تسجيل الخروج</button>
+      <div class="status" id="conn"><i></i><span>جارٍ الاتصال…</span></div>
     </div>
-    <span class="foot">قد يخطئ المساعد — تحقّق من الأرقام في المصدر.</span>
+  </nav>
+
+  <main class="work">
+    <header class="topbar">
+      <button class="btn icon ghost menu" id="menuBtn" aria-label="القائمة">☰</button>
+      <div class="grow">
+        <h1 class="title" id="pgTitle"></h1>
+        <div class="sub" id="pgSub"></div>
+      </div>
+      <div class="row" id="pgActions"></div>
+      <button class="btn icon ghost bell" id="alertsBtn" aria-label="التنبيهات">◔</button>
+      <button class="btn icon ghost" id="themeBtn" aria-label="تبديل المظهر">◐</button>
+    </header>
+
+    <div id="view"></div>
   </main>
 
 </div>
 
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
 <script>
+/* ===================== النواة ===================== */
+
 const API = window.API_BASE || "http://localhost:8000";
+const $  = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[c]);
 
-const SUGGESTIONS = [
-  ["سياسات",   "ما شروط العمل عن بعد؟"],
-  ["موظفين",   "كم رصيد الإجازة لخالد الدوسري؟"],
-  ["إجماليات", "كم إجمالي بدل الانتقال لكل الأقسام؟"],
-  ["إجازات",   "كم يوماً إجازة أمومة؟"],
-];
-
-const el = id => document.getElementById(id);
-const esc = s => String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
-const now = () => new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
-const ext = n => (String(n).split(".").pop() || "").toUpperCase().slice(0, 4);
-
-/* ---------- التخزين ---------- */
-/* localStorage قد يُحجب داخل iframe — نتراجع للذاكرة بهدوء */
-
+/* التخزين متسامح — localStorage قد يُحجب داخل iframe */
 const store = {
   mem: {},
-  get(k, fallback) {
-    try { const v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); }
-    catch { return k in this.mem ? this.mem[k] : fallback; }
+  get(k, fb) {
+    try { const v = localStorage.getItem(k); return v === null ? fb : JSON.parse(v); }
+    catch (e) { return k in this.mem ? this.mem[k] : fb; }
   },
   set(k, v) {
-    try { localStorage.setItem(k, JSON.stringify(v)); }
-    catch { this.mem[k] = v; }
+    try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { this.mem[k] = v; }
   },
 };
 
-/* ---------- الحالة ---------- */
-
 const state = {
-  mode: "agent",
-  busy: false,
-  docs: [],
-  docFilter: "",
-  userName: store.get("userName", ""),
+  token: store.get("token", ""),
+  user:  store.get("user", null),
+  route: "home",
+  mode:  "agent",
+  busy:  false,
+  pending: [],
+  pendingCount: 0,
+  connTimer: null,
+  myLeave: null,
+  myRequests: [],
   sessions: store.get("sessions", []),
   currentId: null,
 };
 
-const current = () => state.sessions.find(s => s.id === state.currentId) || null;
+const isManager = () => state.user && state.user.role === "manager";
 
-function saveSessions() { store.set("sessions", state.sessions.slice(0, 40)); }
+/* ===================== أسماء الأدوات المقروءة =====================
+   المستخدم لا يرى get_leave_balance — يرى "جارٍ التحقق من رصيد إجازتك".
+   الأسماء التقنية تبقى في السجلات للتشخيص. */
+
+const TOOL_TEXT = {
+  search_documents:          ["البحث في مستندات الشركة",   "بحث في المستندات"],
+  get_employee:              ["جلب بيانات الموظف",          "بيانات الموظف"],
+  get_leave_balance:         ["التحقق من رصيد الإجازة",     "رصيد الإجازة"],
+  list_department_employees: ["استعراض موظفي القسم",        "موظفو القسم"],
+  department_summary:        ["تجميع بيانات الأقسام",       "ملخّص الأقسام"],
+  calculate:                 ["إجراء الحساب",               "حساب"],
+  preview_leave_request:     ["تجهيز طلب الإجازة",          "معاينة الطلب"],
+  submit_leave_request:      ["تسجيل طلب الإجازة",          "تسجيل الطلب"],
+  cancel_leave_request:      ["إلغاء الطلب",                "إلغاء الطلب"],
+  list_leave_requests:       ["استعراض طلباتك",             "عرض الطلبات"],
+  list_pending_requests:     ["جلب الطلبات المعلّقة",        "الطلبات المعلّقة"],
+  review_leave_request:      ["تنفيذ القرار",               "مراجعة الطلب"],
+};
+const toolRunning = t => (TOOL_TEXT[t] || ["جارٍ العمل", t])[0] + "…";
+const toolDone    = t => (TOOL_TEXT[t] || [t, t])[1];
+
+const STATUS_TEXT = {
+  pending:   "قيد المراجعة",
+  approved:  "معتمد",
+  rejected:  "مرفوض",
+  cancelled: "ملغى",
+};
+
+/* ===================== الطلبات ===================== */
+
+async function api(path, options) {
+  const o = options || {};
+  o.headers = Object.assign({}, o.headers, { Authorization: "Bearer " + state.token });
+
+  const res = await fetch(API + path, o);
+  if (res.status === 401) { signOut("انتهت الجلسة — سجّل دخولك من جديد."); throw new Error("انتهت الجلسة"); }
+  return res;
+}
+
+async function apiJson(path, options) {
+  const res = await api(path, options);
+  const data = res.status === 204 ? null : await res.json();
+  if (!res.ok) throw new Error((data && data.detail) || ("خطأ " + res.status));
+  return data;
+}
+
+/* ===================== أدوات العرض ===================== */
+
+function toast(msg, kind) {
+  const t = document.createElement("div");
+  t.className = "toast " + (kind || "ok");
+  t.textContent = msg;
+  $("toasts").appendChild(t);
+  setTimeout(() => t.remove(), 3400);
+}
+
+function emptyState(icon, title, sub, action) {
+  return '<div class="state">' +
+      '<div class="ic">' + icon + '</div>' +
+      '<div class="t">' + esc(title) + '</div>' +
+      (sub ? '<div class="s">' + esc(sub) + '</div>' : "") +
+      (action || "") +
+    '</div>';
+}
+
+const errorState = msg =>
+  '<div class="state error"><div class="ic">⚠</div>' +
+  '<div class="t">تعذّر تحميل البيانات</div>' +
+  '<div class="s">' + esc(msg) + '</div></div>';
+
+const loadingRows = (n) =>
+  '<div class="card"><div class="stack tight">' +
+  Array.from({ length: n || 3 }, () => '<div class="skel tall"></div>').join("") +
+  '</div></div>';
+
+const badge = status =>
+  '<span class="badge ' + esc(status) + '">' + esc(STATUS_TEXT[status] || status) + '</span>';
+
+const fmtDate = s => {
+  if (!s) return "—";
+  try {
+    return new Date(s + "T00:00:00").toLocaleDateString("ar-SA-u-ca-gregory",
+      { day: "numeric", month: "short", year: "numeric" });
+  } catch (e) { return s; }
+};
+
+/* طابع زمني قصير من ISO — يتحمّل القيم الفارغة أو التالفة */
+const fmtStamp = s => {
+  if (!s) return "—";
+  try {
+    return new Date(s).toLocaleDateString("ar-SA-u-ca-gregory",
+      { day: "numeric", month: "short" });
+  } catch (e) { return "—"; }
+};
+
+const timeNow = () =>
+  new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+
+
+/* ===================== مكوّنات قابلة لإعادة الاستخدام ===================== */
+
+const skeletonCard = n =>
+  '<div class="card"><div class="stack tight">' +
+  Array.from({ length: n || 3 }, () => '<div class="skel tall"></div>').join("") +
+  "</div></div>";
+
+const metricCard = (value, key, detail, tone) =>
+  '<div class="card"><div class="metric ' + (tone || "") + '">' +
+    '<span class="v">' + value + "</span>" +
+    '<span class="k">' + esc(key) + "</span>" +
+    (detail ? '<span class="d">' + esc(detail) + "</span>" : "") +
+  "</div></div>";
+
+function barList(counts, labels) {
+  const entries = Object.entries(counts || {});
+  if (!entries.length) return '<div class="xs">لا بيانات بعد.</div>';
+  const max = Math.max(...entries.map(e => e[1]));
+
+  return '<div class="stack tight">' + entries.map(pair => {
+    const k = pair[0], n = pair[1];
+    return '<div class="row">' +
+      '<span class="sm bar-label">' + esc(labels ? (labels[k] || k) : k) + "</span>" +
+      '<span class="bar-track"><span class="bar-fill" style="width:' + (n / max * 100) + '%"></span></span>' +
+      '<span class="xs bar-count">' + n + "</span>" +
+    "</div>";
+  }).join("") + "</div>";
+}
+
+/* ===================== الحوارات ===================== */
+
+function openDialog(opts) {
+  closeOverlay();
+
+  const wrap = document.createElement("div");
+  wrap.className = "overlay";
+  wrap.setAttribute("role", "dialog");
+  wrap.setAttribute("aria-modal", "true");
+  wrap.innerHTML =
+    '<div class="dialog">' +
+      '<div class="dialog-head"><span class="h2 grow">' + esc(opts.title) + "</span>" +
+        '<button class="btn icon ghost" data-no aria-label="إغلاق">✕</button></div>' +
+      '<div class="dialog-body">' + opts.body + "</div>" +
+      '<div class="dialog-foot">' +
+        '<button class="btn ' + (opts.danger ? "danger" : "primary") + '" data-go>' +
+          esc(opts.confirmLabel || "تأكيد") + "</button>" +
+        '<button class="btn ghost" data-no>إلغاء</button>' +
+      "</div>" +
+    "</div>";
+
+  document.body.appendChild(wrap);
+
+  wrap.addEventListener("click", e => {
+    if (e.target === wrap || e.target.closest("[data-no]")) closeOverlay();
+  });
+
+  wrap.querySelector("[data-go]").onclick = async () => {
+    const keep = await opts.onConfirm();
+    if (!opts.keepOpen && keep !== false) closeOverlay();
+  };
+
+  if (opts.onReady) opts.onReady();
+  if (opts.focus && $(opts.focus)) $(opts.focus).focus();
+  return wrap;
+}
+
+const confirmDialog = (title, body, confirmLabel, onConfirm, danger) =>
+  openDialog({
+    title: title,
+    body: '<div class="body">' + body + "</div>",
+    confirmLabel: confirmLabel,
+    danger: danger,
+    onConfirm: onConfirm,
+  });
+
+function closeOverlay() {
+  const o = document.querySelector(".overlay");
+  if (o) o.remove();
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeOverlay(); });
+
+/* ===================== طبقة البيانات =====================
+
+   ثلاثة ضمانات:
+   1. لا طلب مكرّر — الطلب الجاري يُشارَك بدل إطلاق آخر.
+   2. لا جلب عند كل تنقّل — نتيجة حديثة تُعاد من الذاكرة.
+   3. فشل مورد لا يُسقط غيره — كل واحد يحمل حالته وخطأه.
+*/
+
+const TTL_MS = 45000;
+
+const resources = {
+  leave:    { state: "idle", data: null, error: "", ts: 0 },
+  requests: { state: "idle", data: [],   error: "", ts: 0 },
+  pending:  { state: "idle", data: [],   error: "", ts: 0 },
+  docs:     { state: "idle", data: [],   error: "", ts: 0 },
+  decisions:{ state: "idle", data: [],   error: "", ts: 0 },
+};
+
+const inflight = {};
+
+/* تحذير في الطرفية لا في الواجهة — المستخدم لا يرى تفاصيل التنفيذ */
+const log = {
+  malformed(key, value) {
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn("مورد " + key + ": ردّ غير متوقّع، استُخدمت قائمة فارغة.", typeof value);
+    }
+  },
+};
+
+function loadResource(key, path, options) {
+  const opts = options || {};
+  const slot = resources[key];
+
+  if (!opts.force && slot.state === "ready" && Date.now() - slot.ts < TTL_MS) {
+    return Promise.resolve(slot);
+  }
+  if (inflight[key]) return inflight[key];
+
+  slot.state = "loading";
+  slot.error = "";
+
+  inflight[key] = (async () => {
+    try {
+      const raw = await apiJson(path);
+      let value = opts.transform ? opts.transform(raw) : raw;
+
+      /* ردّ مشوّه لا يُسقط الصفحة: مورد قائمة يبقى قائمة مهما وصل */
+      if (opts.asList && !Array.isArray(value)) {
+        if (value != null) log.malformed(key, value);
+        value = [];
+      }
+
+      slot.data = value;
+      slot.state = "ready";
+      slot.ts = Date.now();
+    } catch (e) {
+      slot.state = "error";
+      slot.error = e.message;
+    } finally {
+      delete inflight[key];
+    }
+    return slot;
+  })();
+
+  return inflight[key];
+}
+
+/** يُبطل نتائج مخزّنة بعد عملية كتابة. */
+function invalidate() {
+  Array.prototype.forEach.call(arguments, k => {
+    if (resources[k]) resources[k].ts = 0;
+  });
+}
+
+function resetResources() {
+  Object.keys(resources).forEach(k => {
+    resources[k] = { state: "idle", data: k === "leave" ? null : [], error: "", ts: 0 };
+  });
+}
+
+/* --- الموارد --- */
+
+const loadLeave = force =>
+  loadResource("leave", "/me/leave", { force: force });
+
+const loadRequests = force =>
+  loadResource("requests", "/me/requests", { force: force, asList: true });
+
+async function loadDecisions(force) {
+  if (!isManager()) {
+    resources.decisions = { state: "ready", data: [], error: "", ts: Date.now() };
+    return resources.decisions;
+  }
+  return loadResource("decisions", "/leave/decisions?limit=10",
+                      { force: force, asList: true });
+}
+
+
+async function loadPending(force) {
+  if (!isManager()) {
+    resources.pending = { state: "ready", data: [], error: "", ts: Date.now() };
+    state.pending = [];
+    state.pendingCount = 0;
+    return resources.pending;
+  }
+
+  const slot = await loadResource("pending", "/leave/pending", { force: force, asList: true });
+
+  /* نُبقي state.pending لتوافق صفحة الموافقات القائمة */
+  state.pending = slot.state === "ready" ? slot.data : [];
+  state.pendingCount = state.pending.length;
+  return slot;
+}
+
+/* ===================== الوجهات والتنقّل ===================== */
+
+/* mgr: يُعرض لمن يملك صلاحية الإدارة فقط.
+   الإخفاء تحسين للتجربة — الفحص الفعلي في الخادم دائماً. */
+const ROUTES = {
+  home:      { icon: "⌂", label: "الرئيسية",      title: "الرئيسية",         sub: "نظرة على يومك" },
+  assistant: { icon: "✦", label: "المساعد",        title: "المساعد الذكي",     sub: "يجيب من مستنداتك وبياناتك" },
+  workspace: { icon: "◎", label: "مساحتي",         title: "مساحتي",            sub: "رصيدك وبياناتك" },
+  knowledge: { icon: "▤", label: "المعرفة",        title: "قاعدة المعرفة",     sub: "مستندات الشركة" },
+  requests:  { icon: "✎", label: "طلباتي",         title: "طلباتي",            sub: "تقديم ومتابعة" },
+  team:      { icon: "◇", label: "مساحة الفريق",   title: "مساحة الفريق",      sub: "نظرة على طلبات فريقك", mgr: true },
+  approvals: { icon: "✓", label: "الموافقات",      title: "الموافقات",         sub: "طلبات بانتظار قرارك", mgr: true },
+  analytics: { icon: "◫", label: "التحليلات",      title: "التحليلات",         sub: "الاستخدام والتكلفة",  mgr: true },
+  alerts:    { icon: "◔", label: "التنبيهات",      title: "التنبيهات",         sub: "ما يخصّك" },
+  settings:  { icon: "⚒", label: "الإعدادات",      title: "الإعدادات",         sub: "حسابك والنظام" },
+};
+
+const NAV_GROUPS = [
+  { label: "",         items: ["home", "assistant"] },
+  { label: "مساحتي",   items: ["workspace", "requests", "knowledge", "alerts"] },
+  { label: "الإدارة",  items: ["team", "approvals", "analytics"], mgr: true },
+  { label: "",         items: ["settings"] },
+];
+
+const visible = key => !ROUTES[key].mgr || isManager();
+
+function navBadge(key) {
+  /* عدّادات من بيانات حقيقية فقط — لا أرقام مخترَعة */
+  if (key === "approvals") return state.pendingCount;
+  if (key === "alerts") return typeof unreadCount === "function" ? unreadCount() : 0;
+  return 0;
+}
+
+function renderNav() {
+  const host = $("navList");
+  if (!host) return;
+
+  host.innerHTML = NAV_GROUPS
+    .filter(g => !g.mgr || isManager())
+    .map(g => {
+      const items = g.items.filter(visible);
+      if (!items.length) return "";
+      return '<div class="nav-group">' +
+        (g.label ? '<span class="label">' + esc(g.label) + "</span>" : "") +
+        items.map(k => {
+          const r = ROUTES[k];
+          const n = navBadge(k);
+          return '<button class="nav-item' + (state.route === k ? " on" : "") + '"' +
+            ' data-go="' + k + '"' + (state.route === k ? ' aria-current="page"' : "") + ">" +
+            '<span class="ic" aria-hidden="true">' + r.icon + "</span>" +
+            '<span class="tx">' + esc(r.label) + "</span>" +
+            (n ? '<span class="ct">' + n + "</span>" : "") +
+          "</button>";
+        }).join("") +
+      "</div>";
+    }).join("");
+
+  host.querySelectorAll("[data-go]").forEach(b => {
+    b.onclick = () => { go(b.dataset.go); closeNav(); };
+  });
+
+  if (typeof renderBell === "function") renderBell();
+}
+
+/* ===================== التوجيه ===================== */
+
+const PAGES = {};
+
+function go(route) {
+  if (!ROUTES[route] || !visible(route)) route = "home";
+
+  state.route = route;
+  if (location.hash.replace("#", "") !== route) location.hash = route;
+
+  const r = ROUTES[route];
+  $("pgTitle").textContent = r.title;
+  $("pgSub").textContent = r.sub || "";
+  $("pgActions").innerHTML = "";
+
+  const page = PAGES[route] || PAGES.home;
+  $("view").innerHTML = page.render();
+  renderNav();
+
+  if (page.mount) {
+    try { page.mount(); }
+    catch (e) { $("view").innerHTML = errorState(e.message); }
+  }
+}
+
+window.addEventListener("hashchange", () => {
+  const r = location.hash.replace("#", "");
+  if (r && r !== state.route) go(r);
+});
+
+const closeNav = () => document.body.classList.remove("nav-open");
+
+/* ===================== قالب صفحة قيد الإنشاء ===================== */
+
+function comingSoon(purpose, points, action) {
+  return '<div class="page"><div class="page-in">' +
+      '<div class="card" style="max-width:620px;margin:var(--s6) auto;text-align:center">' +
+        '<div class="ic-lg" aria-hidden="true">' + (action && action.icon ? action.icon : "◌") + "</div>" +
+        '<div class="h2" style="margin-top:var(--s3)">' + esc(purpose) + "</div>" +
+        '<div class="sm" style="margin-top:var(--s2)">هذي الصفحة قيد الإنشاء — ستعرض:</div>' +
+        '<ul class="pt-list">' +
+          points.map(p => "<li>" + esc(p) + "</li>").join("") +
+        "</ul>" +
+        (action
+          ? '<button class="btn primary" data-nav="' + action.go + '">' + esc(action.label) + "</button>"
+          : "") +
+      "</div>" +
+    "</div></div>";
+}
+
+function wireNav(scope) {
+  (scope || document).querySelectorAll("[data-nav]").forEach(b => {
+    b.onclick = () => go(b.dataset.nav);
+  });
+}
+
+/* ===================== صفحات قيد الإنشاء (المرحلة 4ب) ===================== */
+
+PAGES.alerts = {
+  render() {
+    return comingSoon("التنبيهات", [
+      "قرارات على طلباتك",
+      "ما ينتظر مراجعتك",
+      "تنبيهات الرصيد المنخفض",
+    ], null);
+  },
+  mount() { wireNav($("view")); },
+};
+
+/* ===================== الرئيسية ===================== */
+
+const QUICK_ACTIONS = [
+  { ic: "✦", t: "اسأل المساعد",  s: "سياسات · بيانات · طلبات", go: "assistant" },
+  { ic: "◎", t: "رصيد إجازتي",   s: "المتاح والمستخدم",        go: "workspace" },
+  { ic: "✎", t: "طلباتي",        s: "المتابعة والإلغاء",       go: "requests" },
+  { ic: "▤", t: "المعرفة",       s: "مستندات الشركة",          go: "knowledge" },
+  { ic: "✓", t: "مراجعة الطلبات", s: "بانتظار قرارك",           go: "approvals", mgr: true },
+];
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "صباح الخير";
+  if (h < 17) return "طاب يومك";
+  return "مساء الخير";
+}
+
+PAGES.home = {
+  render() {
+    const name = state.user ? String(state.user.name).split(" ")[0] : "";
+    const actions = QUICK_ACTIONS.filter(a => !a.mgr || isManager());
+
+    return '<div class="page"><div class="page-in stack" style="gap:var(--s6)">' +
+
+      /* 1 — الترحيب */
+      '<header class="welcome">' +
+        '<div class="grow">' +
+          '<h2 class="h1">' + greeting() + "، " + esc(name) + "</h2>" +
+          '<p class="sm mt-1">هذي نظرة عامة على مساحتك.</p>' +
+        "</div>" +
+        '<span class="badge approved" id="wsState">مساحتك جاهزة</span>' +
+      "</header>" +
+
+      /* 2 — إجراءات سريعة */
+      "<section>" +
+        '<h3 class="label">إجراءات سريعة</h3>' +
+        '<div class="quick">' +
+          actions.map(a =>
+            '<button class="action" data-nav="' + a.go + '">' +
+              '<span class="ic" aria-hidden="true">' + a.ic + "</span>" +
+              '<span class="tx"><span class="t">' + esc(a.t) + "</span>" +
+              '<span class="s">' + esc(a.s) + "</span></span>" +
+            "</button>").join("") +
+        "</div>" +
+      "</section>" +
+
+      /* 3 — المؤشرات */
+      '<section id="hMetrics" aria-label="مؤشرات">' + metricSkeleton() + "</section>" +
+
+      /* 4 + 5 */
+      '<div class="grid g2 start">' +
+        '<section id="hLeave">' + skeletonCard(2) + "</section>" +
+        '<section id="hAttention">' + skeletonCard(2) + "</section>" +
+      "</div>" +
+
+      '<section id="hRequests">' + skeletonCard(3) + "</section>" +
+
+      /* 7 — المساعد */
+      '<section class="card cta">' +
+        '<div class="grow">' +
+          '<div class="h3">تحتاج مساعدة؟</div>' +
+          '<p class="sm mt-1">اسأل المساعد عن سياسات الشركة ومستنداتها ورصيد إجازتك، ' +
+            "وقدّم طلباتك بالمحادثة.</p>" +
+        "</div>" +
+        '<button class="btn primary" data-nav="assistant">افتح المساعد</button>' +
+      "</section>" +
+
+    "</div></div>";
+  },
+
+  async mount() {
+    wireNav($("view"));
+
+    /* كل قسم يُحدَّث وحده — فشل أحدهم لا يُسقط البقية */
+    const jobs = [
+      loadLeave().catch(() => resources.leave),
+      loadRequests().catch(() => resources.requests),
+      loadPending().catch(() => resources.pending),
+    ];
+
+    const settle = () => {
+      if (state.route !== "home") return;
+      renderMetrics();
+      renderLeaveCard();
+      renderAttention();
+      renderRecentRequests();
+      renderWorkspaceState();
+      renderNav();
+    };
+
+    jobs.forEach(p => p.then(settle).catch(settle));
+    await Promise.allSettled(jobs);
+    settle();
+  },
+};
+
+/* --- الحالة العامة في الترويسة --- */
+
+function renderWorkspaceState() {
+  const el = $("wsState");
+  if (!el) return;
+
+  const failed = ["leave", "requests", "pending"].filter(k => resources[k].state === "error");
+  const loading = ["leave", "requests", "pending"].some(k => resources[k].state === "loading");
+
+  if (loading) { el.className = "badge info"; el.textContent = "جارٍ التحميل"; }
+  else if (failed.length) { el.className = "badge pending"; el.textContent = "بعض البيانات غير متاحة"; }
+  else { el.className = "badge approved"; el.textContent = "مساحتك جاهزة"; }
+}
+
+/* --- 3: المؤشرات --- */
+
+const metricSkeleton = () =>
+  '<div class="grid g4">' +
+  Array.from({ length: 4 }, () => '<div class="card"><div class="skel w-40"></div>' +
+    '<div class="skel tall mt-2"></div></div>').join("") +
+  "</div>";
+
+function renderMetrics() {
+  const host = $("hMetrics");
+  if (!host) return;
+
+  const L = resources.leave, R = resources.requests, P = resources.pending;
+
+  /* "—" حين تغيب البيانات — لا صفر مخترَع ولا NaN */
+  const val = (slot, pick) =>
+    slot.state === "ready" && slot.data != null ? pick(slot.data) : "—";
+
+  const cards = [
+    metricCard(val(L, d => d.available), "يوماً متاحاً",
+               L.state === "error" ? "غير متاح حالياً" : "قابل للطلب الآن",
+               L.state === "ready" ? "accent" : ""),
+    metricCard(val(L, d => d.leave_used), "يوماً مستخدماً",
+               L.state === "ready" ? "من " + L.data.annual_leave + " يوماً" : ""),
+    metricCard(val(R, d => d.filter(r => r.status === "pending").length), "طلب معلّق",
+               R.state === "error" ? "غير متاح حالياً" : "بانتظار قرار"),
+    metricCard(val(R, d => d.length), "إجمالي طلباتي", "في سجلّك"),
+  ];
+
+  if (isManager()) {
+    cards.push(metricCard(
+      P.state === "ready" ? P.data.length : "—",
+      "بانتظار قرارك",
+      P.state === "error" ? "غير متاح حالياً" : "طلبات فريقك",
+      P.state === "ready" && P.data.length ? "warn" : ""));
+  }
+
+  host.innerHTML = '<div class="grid ' + (cards.length > 4 ? "g5" : "g4") + '">' +
+    cards.join("") + "</div>";
+}
+
+/* --- 4: بطاقة الرصيد --- */
+
+function renderLeaveCard() {
+  const host = $("hLeave");
+  if (!host) return;
+
+  const L = resources.leave;
+
+  if (L.state === "loading" || L.state === "idle") { host.innerHTML = skeletonCard(2); return; }
+
+  if (L.state === "error") {
+    host.innerHTML = '<div class="card">' +
+      '<div class="state error"><div class="ic" aria-hidden="true">⚠</div>' +
+        '<div class="t">تعذّر تحميل رصيد الإجازة</div>' +
+        '<div class="s">' + esc(L.error) + "</div>" +
+        '<button class="btn sm" id="retryLeave">إعادة المحاولة</button></div></div>';
+    $("retryLeave").onclick = async () => {
+      host.innerHTML = skeletonCard(2);
+      await loadLeave(true);
+      if (state.route === "home") { renderLeaveCard(); renderMetrics(); renderWorkspaceState(); }
+    };
+    return;
+  }
+
+  const d = L.data;
+  if (!d) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("◎", "لا سجل إجازات", "لم يُربط هذا الحساب بسجل موظف.") + "</div>";
+    return;
+  }
+
+  const annual = d.annual_leave || 0;
+  const pct = n => (annual ? Math.round((n / annual) * 100) : 0);
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">رصيد الإجازة</span>' +
+        '<button class="btn sm ghost" data-nav="workspace">التفاصيل</button></div>' +
+      '<div class="card-body">' +
+
+        '<div class="row" style="align-items:flex-end">' +
+          '<div class="metric accent grow"><span class="v">' + d.available + "</span>" +
+            '<span class="k">يوماً متاحاً</span></div>' +
+          '<span class="xs">من ' + annual + " يوماً سنوياً</span>" +
+        "</div>" +
+
+        '<div class="meter" role="img" aria-label="مستخدم ' + d.leave_used +
+          " ومحجوز " + d.pending_days + " من " + annual + ' يوماً">' +
+          '<span class="seg-used" style="width:' + pct(d.leave_used) + '%"></span>' +
+          '<span class="seg-held" style="width:' + pct(d.pending_days) + '%"></span>' +
+        "</div>" +
+
+        '<div class="legend">' +
+          '<span><i class="k-used"></i>مستخدم · ' + d.leave_used + "</span>" +
+          '<span><i class="k-held"></i>محجوز · ' + d.pending_days + "</span>" +
+          '<span><i class="k-free"></i>متاح · ' + d.available + "</span>" +
+        "</div>" +
+
+        '<p class="xs mt-3">' + esc(d.formula || d.calculation || "") + "</p>" +
+      "</div>" +
+    "</div>";
+
+  wireNav(host);
+}
+
+/* --- 5: الطلبات الأخيرة --- */
+
+function renderRecentRequests() {
+  const host = $("hRequests");
+  if (!host) return;
+
+  const R = resources.requests;
+
+  if (R.state === "loading" || R.state === "idle") { host.innerHTML = skeletonCard(3); return; }
+
+  if (R.state === "error") {
+    host.innerHTML = '<div class="card">' +
+      '<div class="state error"><div class="ic" aria-hidden="true">⚠</div>' +
+        '<div class="t">تعذّر تحميل طلباتك</div>' +
+        '<div class="s">' + esc(R.error) + "</div>" +
+        '<button class="btn sm" id="retryReq">إعادة المحاولة</button></div></div>';
+    $("retryReq").onclick = async () => {
+      host.innerHTML = skeletonCard(3);
+      await loadRequests(true);
+      if (state.route === "home") { renderRecentRequests(); renderMetrics(); renderWorkspaceState(); }
+    };
+    return;
+  }
+
+  const list = (R.data || []).slice(0, 5);
+
+  if (!list.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("✎", "لا طلبات بعد",
+        "قدّم طلب إجازتك عبر المساعد — يتحقق من رصيدك ويعرض المعاينة قبل التسجيل.",
+        '<button class="btn primary" data-nav="assistant">قدّم طلباً</button>') + "</div>";
+    wireNav(host);
+    return;
+  }
+
+  const LEAVE_TYPE = { annual: "إجازة سنوية" };
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">طلباتي الأخيرة</span>' +
+        '<button class="btn sm ghost" data-nav="requests">عرض الكل</button></div>' +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>النوع</th><th>الفترة</th><th>الأيام</th><th>الحالة</th>" +
+        '<th class="end">قُدّم في</th>' +
+      "</tr></thead><tbody>" +
+        list.map(r =>
+          "<tr>" +
+            '<td class="nowrap">' + esc(LEAVE_TYPE[r.leave_type] || r.leave_type || "إجازة") + "</td>" +
+            '<td class="nowrap">' + fmtDate(r.start_date) + " ← " + fmtDate(r.end_date) + "</td>" +
+            '<td class="nowrap">' + r.days + "</td>" +
+            "<td>" + badge(r.status) + "</td>" +
+            '<td class="end sm nowrap">' + fmtStamp(r.created_at) + "</td>" +
+          "</tr>").join("") +
+      "</tbody></table></div>" +
+    "</div>";
+
+  wireNav(host);
+}
+
+/* --- 6: ما يحتاج انتباهك --- */
+
+function buildAttention() {
+  const out = [];
+  const R = resources.requests, P = resources.pending, L = resources.leave;
+
+  if (isManager() && P.state === "ready" && P.data.length) {
+    out.push({
+      tone: "info", icon: "✓",
+      title: P.data.length + " طلب بانتظار مراجعتك",
+      body: "أقدمها من " + esc(P.data[0].employee_name),
+      go: "approvals", label: "مراجعة",
+    });
+  }
+
+  if (R.state === "ready") {
+    (R.data || []).filter(r => r.status === "approved").slice(0, 2).forEach(r =>
+      out.push({
+        tone: "ok", icon: "✓",
+        title: "اعتُمد طلب إجازتك",
+        body: fmtDate(r.start_date) + " · " + r.days + " أيام",
+        go: "requests", label: "عرض",
+      }));
+
+    (R.data || []).filter(r => r.status === "rejected").slice(0, 2).forEach(r =>
+      out.push({
+        tone: "danger", icon: "✕",
+        title: "رُفض طلب إجازتك",
+        body: r.rejection_reason ? esc(r.rejection_reason)
+                                 : fmtDate(r.start_date) + " · " + r.days + " أيام",
+        go: "requests", label: "عرض",
+      }));
+  }
+
+  if (L.state === "ready" && L.data && L.data.available <= 2) {
+    out.push({
+      tone: "warn", icon: "!",
+      title: "رصيد إجازتك منخفض",
+      body: "المتاح " + L.data.available + " يوماً فقط.",
+      go: "workspace", label: "التفاصيل",
+    });
+  }
+
+  return out;
+}
+
+function renderAttention() {
+  const host = $("hAttention");
+  if (!host) return;
+
+  const stillLoading = ["requests", "pending", "leave"]
+    .some(k => resources[k].state === "loading" || resources[k].state === "idle");
+  if (stillLoading) { host.innerHTML = skeletonCard(2); return; }
+
+  const items = buildAttention();
+  const toneClass = { ok: "approved", danger: "rejected", warn: "pending", info: "info" };
+
+  if (!items.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("◔", "لا شيء يحتاج انتباهك", "سنخبرك فور تغيّر شيء يخصّك.") + "</div>";
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">يحتاج انتباهك</span>' +
+        '<span class="badge plain">' + items.length + "</span></div>" +
+      '<div class="stack tight" style="padding:var(--s4)">' +
+        items.slice(0, 4).map(a =>
+          '<div class="row start">' +
+            '<span class="badge ' + toneClass[a.tone] + ' plain" aria-hidden="true">' + a.icon + "</span>" +
+            '<div class="grow"><div class="h3">' + esc(a.title) + "</div>" +
+            '<div class="xs mt-1">' + a.body + "</div></div>" +
+            '<button class="btn sm ghost" data-nav="' + a.go + '">' + esc(a.label) + "</button>" +
+          "</div>").join("") +
+      "</div>" +
+    "</div>";
+
+  wireNav(host);
+}
+
+/* ===================== مساحتي ===================== */
+
+PAGES.workspace = {
+  render() {
+    return '<div class="page"><div class="page-in stack" style="gap:var(--s6)">' +
+        '<section id="wsProfile">' + skeletonCard(2) + "</section>" +
+        '<section id="wsBalance">' + metricSkeleton() + "</section>" +
+        '<section id="wsBreakdown">' + skeletonCard(2) + "</section>" +
+      "</div></div>";
+  },
+
+  async mount() {
+    $("pgActions").innerHTML =
+      '<button class="btn primary sm" id="wsAsk">طلب إجازة</button>';
+    $("wsAsk").onclick = requestLeaveViaAssistant;
+
+    renderProfile();
+
+    await loadLeave().catch(() => resources.leave);
+    if (state.route !== "workspace") return;
+
+    renderBalance();
+    renderBreakdown();
+  },
+};
+
+/* الطلب يمرّ بمسار المساعد القائم: معاينة ← تأكيد ← تسجيل.
+   لا نبني مساراً موازياً في الواجهة. */
+function requestLeaveViaAssistant() {
+  pendingQuestion = "أبي أطلب إجازة";
+  go("assistant");
+}
+
+function renderProfile() {
+  const host = $("wsProfile");
+  if (!host) return;
+
+  const u = state.user || {};
+  const L = resources.leave;
+  const dept = L.state === "ready" && L.data ? L.data.department : "";
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">بيانات الموظف</span>' +
+        (isManager() ? '<span class="badge approved">مدير</span>'
+                     : '<span class="badge info">موظف</span>') + "</div>" +
+      '<div class="table-wrap"><table class="table"><tbody>' +
+        '<tr><td class="sm w-label">الاسم</td><td>' + esc(u.name || "—") + "</td></tr>" +
+        '<tr><td class="sm">الرقم الوظيفي</td><td class="ltr">' + esc(u.id || "—") + "</td></tr>" +
+        (dept ? '<tr><td class="sm">القسم</td><td>' + esc(dept) + "</td></tr>" : "") +
+      "</tbody></table></div>" +
+    "</div>";
+}
+
+function renderBalance() {
+  const host = $("wsBalance");
+  if (!host) return;
+
+  const L = resources.leave;
+
+  if (L.state === "error") { host.innerHTML = leaveErrorCard("wsRetry", "wsBalance"); return; }
+  if (L.state !== "ready" || !L.data) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("◎", "لا سجل إجازات", "لم يُربط هذا الحساب بسجل موظف.") + "</div>";
+    return;
+  }
+
+  const d = L.data;
+  host.innerHTML = '<div class="grid g4">' +
+      metricCard(d.available, "يوماً متاحاً", "قابل للطلب الآن", "accent") +
+      metricCard(d.leave_used, "يوماً مستخدماً", "خُصم فعلياً") +
+      metricCard(d.pending_days, "يوماً محجوزاً", "طلبات معلّقة",
+                 d.pending_days ? "warn" : "") +
+      metricCard(d.annual_leave, "الرصيد السنوي", "الاستحقاق الكامل") +
+    "</div>";
+}
+
+function renderBreakdown() {
+  const host = $("wsBreakdown");
+  if (!host) return;
+
+  const L = resources.leave;
+  if (L.state !== "ready" || !L.data) { host.innerHTML = ""; return; }
+
+  const d = L.data;
+  const annual = d.annual_leave || 0;
+  const pct = n => (annual ? Math.round((n / annual) * 100) : 0);
+
+  /* الأرقام من الخادم كما هي — الواجهة تعرض ولا تحسب رصيداً موازياً */
+  const rows = [
+    { k: "used", label: "مستخدم",  n: d.leave_used },
+    { k: "held", label: "محجوز",   n: d.pending_days },
+    { k: "free", label: "متاح",    n: d.available },
+  ];
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">توزيع الرصيد</span>' +
+        '<span class="badge plain">' + annual + " يوماً</span></div>" +
+      '<div class="card-body">' +
+
+        '<div class="meter tall-meter" role="img" aria-label="' +
+          "مستخدم " + d.leave_used + " · محجوز " + d.pending_days +
+          " · متاح " + d.available + " من " + annual + ' يوماً">' +
+          '<span class="seg-used" style="width:' + pct(d.leave_used) + '%"></span>' +
+          '<span class="seg-held" style="width:' + pct(d.pending_days) + '%"></span>' +
+        "</div>" +
+
+        '<div class="breakdown">' +
+          rows.map(r =>
+            '<div class="brow">' +
+              '<span class="key"><i class="k-' + r.k + '"></i>' + esc(r.label) + "</span>" +
+              '<span class="val">' + r.n + '<span class="unit"> يوماً</span></span>' +
+              '<span class="pc">' + pct(r.n) + "%</span>" +
+            "</div>").join("") +
+        "</div>" +
+
+        '<p class="xs mt-3">' + esc(d.formula || "") + "</p>" +
+        '<p class="xs">' + esc(d.calculation || "") + "</p>" +
+      "</div>" +
+    "</div>";
+}
+
+/* بطاقة خطأ مشتركة بين مساحتي والرئيسية */
+function leaveErrorCard(btnId, hostId) {
+  setTimeout(() => {
+    const b = $(btnId);
+    if (!b) return;
+    b.onclick = async () => {
+      const host = $(hostId);
+      if (host) host.innerHTML = skeletonCard(2);
+      await loadLeave(true);
+      if (state.route === "workspace") { renderBalance(); renderBreakdown(); renderProfile(); }
+      else if (state.route === "home") { renderLeaveCard(); renderMetrics(); renderWorkspaceState(); }
+    };
+  }, 0);
+
+  return '<div class="card"><div class="state error">' +
+      '<div class="ic" aria-hidden="true">⚠</div>' +
+      '<div class="t">تعذّر تحميل رصيد الإجازة</div>' +
+      '<div class="s">' + esc(resources.leave.error) + "</div>" +
+      '<button class="btn sm" id="' + btnId + '">إعادة المحاولة</button>' +
+    "</div></div>";
+}
+
+/* ===================== طلباتي ===================== */
+
+const STATUS_ORDER = ["pending", "approved", "rejected", "cancelled"];
+const LEAVE_TYPE_TEXT = { annual: "إجازة سنوية" };
+const typeText = t => LEAVE_TYPE_TEXT[t] || t || "إجازة";
+
+/* المرشّح في الحالة — لا يُفقد عند إعادة الرسم، ولا يستدعي الخادم */
+let requestFilter = "all";
+
+PAGES.requests = {
+  render() {
+    return '<div class="page"><div class="page-in stack" style="gap:var(--s5)">' +
+        '<section id="rqSummary">' + metricSkeleton() + "</section>" +
+        '<section id="rqFilters"></section>' +
+        '<section id="rqList">' + skeletonCard(3) + "</section>" +
+      "</div></div>";
+  },
+
+  async mount() {
+    $("pgActions").innerHTML =
+      '<button class="btn primary sm" id="rqNew">طلب إجازة</button>';
+    $("rqNew").onclick = requestLeaveViaAssistant;
+
+    await Promise.allSettled([
+      loadRequests().catch(() => resources.requests),
+      loadLeave().catch(() => resources.leave),
+    ]);
+    if (state.route !== "requests") return;
+
+    renderRequestSummary();
+    renderRequestFilters();
+    renderRequestList();
+  },
+};
+
+function renderRequestSummary() {
+  const host = $("rqSummary");
+  if (!host) return;
+
+  const R = resources.requests;
+  if (R.state === "error") { host.innerHTML = requestsErrorCard("rqRetry1"); return; }
+  if (R.state !== "ready") { host.innerHTML = metricSkeleton(); return; }
+
+  const list = R.data || [];
+  const n = s => list.filter(r => r.status === s).length;
+  const L = resources.leave;
+
+  host.innerHTML = '<div class="grid g5">' +
+      metricCard(list.length, "إجمالي الطلبات", "في سجلّك") +
+      metricCard(n("pending"), "معلّق", "بانتظار قرار", n("pending") ? "warn" : "") +
+      metricCard(n("approved"), "معتمد", "خُصم من رصيدك", "ok") +
+      metricCard(n("rejected"), "مرفوض", "") +
+      metricCard(
+        L.state === "ready" && L.data ? L.data.available : "—",
+        "يوماً متاحاً", "قابل للطلب", "accent") +
+    "</div>";
+}
+
+function renderRequestFilters() {
+  const host = $("rqFilters");
+  if (!host) return;
+
+  const R = resources.requests;
+  if (R.state !== "ready" || !(R.data || []).length) { host.innerHTML = ""; return; }
+
+  const list = R.data;
+  const counts = { all: list.length };
+  STATUS_ORDER.forEach(s => { counts[s] = list.filter(r => r.status === s).length; });
+
+  const tabs = ["all"].concat(STATUS_ORDER.filter(s => counts[s] > 0));
+
+  host.innerHTML =
+    '<div class="seg filters" role="tablist" aria-label="تصفية الطلبات">' +
+      tabs.map(t =>
+        '<button role="tab" data-f="' + t + '"' +
+          ' aria-selected="' + (requestFilter === t) + '"' +
+          (requestFilter === t ? ' class="on"' : "") + ">" +
+          esc(t === "all" ? "الكل" : STATUS_TEXT[t] || t) +
+          '<span class="n">' + counts[t] + "</span>" +
+        "</button>").join("") +
+    "</div>";
+
+  host.querySelectorAll("[data-f]").forEach(b => {
+    b.onclick = () => {
+      requestFilter = b.dataset.f;
+      renderRequestFilters();   /* تصفية في المتصفح — بلا طلب للخادم */
+      renderRequestList();
+    };
+  });
+}
+
+function renderRequestList() {
+  const host = $("rqList");
+  if (!host) return;
+
+  const R = resources.requests;
+  if (R.state === "loading" || R.state === "idle") { host.innerHTML = skeletonCard(3); return; }
+  if (R.state === "error") { host.innerHTML = requestsErrorCard("rqRetry2"); return; }
+
+  const all = R.data || [];
+
+  if (!all.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("✎", "لا طلبات بعد",
+        "قدّم طلب إجازتك عبر المساعد — يتحقق من رصيدك ويعرض المعاينة قبل التسجيل.",
+        '<button class="btn primary" id="rqEmptyCta">طلب إجازة</button>') + "</div>";
+    if ($("rqEmptyCta")) $("rqEmptyCta").onclick = requestLeaveViaAssistant;
+    return;
+  }
+
+  const list = requestFilter === "all" ? all : all.filter(r => r.status === requestFilter);
+
+  if (!list.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("⌕", "لا طلبات بهذي الحالة", "جرّب تصفية أخرى.") + "</div>";
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">سجل الطلبات</span>' +
+        '<span class="badge plain">' + list.length + "</span></div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>#</th><th>النوع</th><th>الفترة</th><th>الأيام</th>" +
+        "<th>الحالة</th><th>قُدّم في</th>" +
+        '<th class="end">إجراء</th>' +
+      "</tr></thead><tbody>" +
+        list.map(r =>
+          '<tr data-row="' + r.id + '">' +
+            '<td class="sm nowrap">' + r.id + "</td>" +
+            '<td class="nowrap">' + esc(typeText(r.leave_type)) + "</td>" +
+            '<td class="nowrap">' + fmtDate(r.start_date) + " ← " + fmtDate(r.end_date) + "</td>" +
+            '<td class="nowrap">' + r.days + "</td>" +
+            "<td>" + badge(r.status) + "</td>" +
+            '<td class="sm nowrap">' + fmtStamp(r.created_at) + "</td>" +
+            '<td class="end nowrap">' +
+              '<button class="btn sm ghost" data-view="' + r.id + '">التفاصيل</button>' +
+              (r.can_cancel
+                ? '<button class="btn sm ghost danger-text" data-cancel="' + r.id + '">إلغاء</button>'
+                : "") +
+            "</td>" +
+          "</tr>").join("") +
+      "</tbody></table></div>" +
+    "</div>";
+
+  host.querySelectorAll("[data-view]").forEach(b => {
+    b.onclick = () => showRequestDetails(+b.dataset.view);
+  });
+  host.querySelectorAll("[data-cancel]").forEach(b => {
+    b.onclick = () => confirmCancelRequest(+b.dataset.cancel);
+  });
+}
+
+function findRequest(id) {
+  return (resources.requests.data || []).find(r => r.id === id) || null;
+}
+
+/* --- تفاصيل الطلب --- */
+
+function showRequestDetails(id) {
+  const r = findRequest(id);
+  if (!r) { toast("تعذّر العثور على الطلب", "err"); return; }
+
+  const row = (label, value) =>
+    '<tr><td class="sm w-label">' + esc(label) + "</td><td>" + value + "</td></tr>";
+
+  const decided = r.status === "approved" || r.status === "rejected";
+
+  const body =
+    '<div class="table-wrap"><table class="table compact"><tbody>' +
+      row("رقم الطلب", '<span class="ltr">' + r.id + "</span>") +
+      row("النوع", esc(typeText(r.leave_type))) +
+      row("الفترة", fmtDate(r.start_date) + " ← " + fmtDate(r.end_date)) +
+      row("عدد الأيام", r.days) +
+      row("الحالة", badge(r.status)) +
+      row("قُدّم في", fmtStamp(r.created_at)) +
+    "</tbody></table></div>" +
+
+    '<div class="label mt-5">سبب الموظف</div>' +
+    '<div class="quote">' + (r.reason ? esc(r.reason) : "لم يُذكر سبب.") + "</div>" +
+
+    (decided
+      ? '<div class="label mt-5">القرار</div>' +
+        '<div class="table-wrap"><table class="table compact"><tbody>' +
+          row("القرار", badge(r.status)) +
+          (r.decided_at ? row("تاريخ القرار", fmtStamp(r.decided_at)) : "") +
+          (r.decided_by_name ? row("اتخذه", esc(r.decided_by_name)) : "") +
+        "</tbody></table></div>" +
+        (r.decision_note
+          ? '<div class="quote ' + (r.status === "rejected" ? "warn-quote" : "") + '">' +
+            esc(r.decision_note) + "</div>"
+          : '<div class="xs mt-2">بلا ملاحظة.</div>')
+      : "") +
+
+    (r.status === "cancelled" ? '<p class="xs mt-5">أُلغي هذا الطلب، وعادت أيامه لرصيدك.</p>' : "") +
+    (r.status === "approved" ? '<p class="xs mt-5">خُصمت أيام هذا الطلب من رصيدك.</p>' : "");
+
+  const wrap = openDialog({
+    title: "تفاصيل الطلب",
+    body: body,
+    confirmLabel: r.can_cancel ? "إلغاء الطلب" : "إغلاق",
+    danger: !!r.can_cancel,
+    onConfirm: async () => {
+      closeOverlay();
+      if (r.can_cancel) confirmCancelRequest(r.id);
+    },
+  });
+
+  /* زر "إلغاء" السفلي زائد حين لا يوجد إجراء */
+  if (!r.can_cancel) {
+    const dismiss = wrap.querySelectorAll(".dialog-foot [data-no]");
+    dismiss.forEach(b => b.remove());
+  }
+}
+
+/* --- الإلغاء --- */
+
+function confirmCancelRequest(id) {
+  const r = findRequest(id);
+  if (!r) return;
+
+  /* الزر لا يظهر إلا بـ can_cancel من الخادم — والخادم يفحص مجدداً */
+  confirmDialog(
+    "إلغاء الطلب",
+    "سيُلغى الطلب رقم <b>" + r.id + "</b> (" + r.days + " أيام، " +
+      fmtDate(r.start_date) + " ← " + fmtDate(r.end_date) + ").<br>" +
+      "تعود أيامه لرصيدك المتاح، ولا يمكن التراجع عن الإلغاء.",
+    "تأكيد الإلغاء",
+    async () => {
+      try {
+        const d = await apiJson("/leave/" + id + "/cancel", { method: "POST" });
+        toast("أُلغي الطلب · المتاح الآن " + d.available + " يوماً");
+
+        /* كل ما تأثّر يُبطَل — الرئيسية ومساحتي والموافقات */
+        invalidate("requests", "leave", "pending", "decisions");
+        await Promise.allSettled([loadRequests(true), loadLeave(true), loadPending(true)]);
+
+        renderNav();
+        if (state.route === "requests") {
+          renderRequestSummary(); renderRequestFilters(); renderRequestList();
+        }
+      } catch (e) {
+        toast(e.message, "err");
+        /* قد يكون الخادم رفض لتغيّر الحالة — نعيد المزامنة */
+        invalidate("requests");
+        await loadRequests(true).catch(() => {});
+        if (state.route === "requests") renderRequestList();
+      }
+    },
+    true
+  );
+}
+
+function requestsErrorCard(btnId) {
+  setTimeout(() => {
+    const b = $(btnId);
+    if (!b) return;
+    b.onclick = async () => {
+      const host = $("rqList");
+      if (host) host.innerHTML = skeletonCard(3);
+      await loadRequests(true);
+      if (state.route === "requests") {
+        renderRequestSummary(); renderRequestFilters(); renderRequestList();
+      }
+    };
+  }, 0);
+
+  return '<div class="card"><div class="state error">' +
+      '<div class="ic" aria-hidden="true">⚠</div>' +
+      '<div class="t">تعذّر تحميل طلباتك</div>' +
+      '<div class="s">' + esc(resources.requests.error) + "</div>" +
+      '<button class="btn sm" id="' + btnId + '">إعادة المحاولة</button>' +
+    "</div></div>";
+}
+
+/* ===================== المعرفة ===================== */
+
+const FILE_TYPES = {
+  pdf:  { label: "PDF",   tone: "rejected" },
+  docx: { label: "Word",  tone: "info" },
+  doc:  { label: "Word",  tone: "info" },
+  xlsx: { label: "Excel", tone: "approved" },
+  xls:  { label: "Excel", tone: "approved" },
+};
+
+const fileKind = d => {
+  const ext = (d.file_type || String(d.filename).split(".").pop() || "").toLowerCase();
+  return FILE_TYPES[ext] || { label: ext.toUpperCase() || "ملف", tone: "" };
+};
+
+let docQuery = "";
+let docSearchTimer = null;
+
+async function loadDocs(force) {
+  return loadResource("docs", "/documents", { force: force, asList: true });
+}
+
+PAGES.knowledge = {
+  render() {
+    return '<div class="page"><div class="page-in stack" style="gap:var(--s5)">' +
+
+        '<header class="k-head">' +
+          '<div class="grow">' +
+            '<p class="sm">استكشف معرفة المؤسسة ومستنداتها.</p>' +
+          "</div>" +
+          '<span class="badge plain" id="kCount">—</span>' +
+        "</header>" +
+
+        '<div class="searchbar">' +
+          '<span class="ic" aria-hidden="true">⌕</span>' +
+          '<input class="input bare" id="kSearch" type="search" ' +
+            'placeholder="ابحث باسم المستند أو نوعه…" aria-label="بحث في المستندات">' +
+          '<button class="btn icon ghost" id="kClear" aria-label="مسح البحث" hidden>✕</button>' +
+        "</div>" +
+
+        (isManager() ? '<section id="kUpload"></section>' : "") +
+
+        '<section id="kList">' + skeletonCard(3) + "</section>" +
+
+        '<section class="card cta">' +
+          '<div class="grow">' +
+            '<div class="h3">لم تجد ما تبحث عنه؟</div>' +
+            '<p class="sm mt-1">اسأل المساعد ليبحث في محتوى المستندات كلها، ' +
+              "ويجيبك مع ذكر المصدر.</p>" +
+          "</div>" +
+          '<button class="btn primary" data-nav="assistant">افتح المساعد</button>' +
+        "</section>" +
+
+      "</div></div>";
+  },
+
+  async mount() {
+    wireNav($("view"));
+
+    if (isManager()) mountUploader();
+
+    const box = $("kSearch");
+    box.value = docQuery;
+    $("kClear").hidden = !docQuery;
+
+    /* تأخير بسيط: لا بحث عند كل حرف */
+    box.addEventListener("input", e => {
+      docQuery = e.target.value;
+      $("kClear").hidden = !docQuery;
+      clearTimeout(docSearchTimer);
+      docSearchTimer = setTimeout(renderDocs, 180);
+    });
+    box.addEventListener("keydown", e => {
+      if (e.key === "Enter") { clearTimeout(docSearchTimer); renderDocs(); }
+      if (e.key === "Escape") { docQuery = ""; box.value = ""; $("kClear").hidden = true; renderDocs(); }
+    });
+    $("kClear").onclick = () => {
+      docQuery = ""; box.value = ""; $("kClear").hidden = true;
+      renderDocs(); box.focus();
+    };
+
+    await loadDocs().catch(() => resources.docs);
+    if (state.route !== "knowledge") return;
+    renderDocs();
+  },
+};
+
+/* --- القائمة والبحث --- */
+
+function filterDocs(list, q) {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return list;
+  /* بحث في البيانات الوصفية — الأسئلة الدلالية مكانها المساعد */
+  return list.filter(d =>
+    String(d.filename).toLowerCase().includes(needle) ||
+    String(d.file_type || "").toLowerCase().includes(needle) ||
+    fileKind(d).label.toLowerCase().includes(needle) ||
+    String(d.uploaded_by || "").toLowerCase().includes(needle));
+}
+
+function renderDocs() {
+  const host = $("kList");
+  if (!host) return;
+
+  const D = resources.docs;
+  const counter = $("kCount");
+
+  if (D.state === "loading" || D.state === "idle") {
+    host.innerHTML = skeletonCard(3);
+    if (counter) counter.textContent = "—";
+    return;
+  }
+
+  if (D.state === "error") {
+    if (counter) counter.textContent = "—";
+    host.innerHTML = '<div class="card"><div class="state error">' +
+        '<div class="ic" aria-hidden="true">⚠</div>' +
+        '<div class="t">تعذّر تحميل المعرفة</div>' +
+        '<div class="s">' + esc(D.error) + "</div>" +
+        '<button class="btn sm" id="kRetry">إعادة المحاولة</button>' +
+      "</div></div>";
+    $("kRetry").onclick = async () => {
+      host.innerHTML = skeletonCard(3);
+      await loadDocs(true);
+      if (state.route === "knowledge") renderDocs();
+    };
+    return;
+  }
+
+  const all = D.data || [];
+  if (counter) counter.textContent = all.length + " مستنداً";
+
+  if (!all.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("▤", "لا مستندات متاحة",
+        isManager() ? "ارفع مستنداً ليبدأ المساعد بالإجابة منه."
+                    : "لم تُضَف مستندات إلى قاعدة المعرفة بعد.") + "</div>";
+    return;
+  }
+
+  const list = filterDocs(all, docQuery);
+
+  if (!list.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("⌕", "لا مستندات تطابق بحثك",
+        'جرّب كلمة أخرى، أو اسأل المساعد عن المحتوى نفسه.',
+        '<button class="btn" data-nav="assistant">اسأل المساعد</button>') + "</div>";
+    wireNav(host);
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">المستندات</span>' +
+        '<span class="badge plain">' + list.length +
+          (docQuery ? " من " + all.length : "") + "</span></div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>النوع</th><th>الاسم</th><th>المقاطع</th><th>رُفع في</th><th>رفعه</th>" +
+        '<th class="end">إجراء</th>' +
+      "</tr></thead><tbody>" +
+        list.map(d => {
+          const k = fileKind(d);
+          return "<tr>" +
+            '<td><span class="badge ' + k.tone + ' plain">' + esc(k.label) + "</span></td>" +
+            '<td class="trunc doc-name">' + esc(d.filename) + "</td>" +
+            '<td class="sm nowrap">' + d.chunks + "</td>" +
+            '<td class="sm nowrap">' + (d.uploaded_at ? fmtStamp(d.uploaded_at) : "—") + "</td>" +
+            '<td class="sm nowrap">' + (d.uploaded_by ? esc(d.uploaded_by) : "—") + "</td>" +
+            '<td class="end nowrap">' +
+              '<button class="btn sm ghost" data-view="' + esc(d.doc_hash) + '">التفاصيل</button>' +
+              (isManager()
+                ? '<button class="btn sm ghost danger-text" data-del="' + esc(d.doc_hash) +
+                  '">حذف</button>' : "") +
+            "</td>" +
+          "</tr>";
+        }).join("") +
+      "</tbody></table></div>" +
+    "</div>";
+
+  host.querySelectorAll("[data-view]").forEach(b => {
+    b.onclick = () => showDocDetails(b.dataset.view);
+  });
+  host.querySelectorAll("[data-del]").forEach(b => {
+    b.onclick = () => confirmDeleteDoc(b.dataset.del);
+  });
+}
+
+const findDoc = hash => (resources.docs.data || []).find(d => d.doc_hash === hash) || null;
+
+/* --- التفاصيل --- */
+
+function showDocDetails(hash) {
+  const d = findDoc(hash);
+  if (!d) { toast("تعذّر العثور على المستند", "err"); return; }
+
+  const k = fileKind(d);
+  const row = (label, value) =>
+    '<tr><td class="sm w-label">' + esc(label) + "</td><td>" + value + "</td></tr>";
+
+  /* لا مسارات ولا معرّفات متجهات — البصمة معرّف عام للحذف فقط */
+  const body =
+    '<div class="table-wrap"><table class="table compact"><tbody>' +
+      row("الاسم", esc(d.filename)) +
+      row("النوع", '<span class="badge ' + k.tone + ' plain">' + esc(k.label) + "</span>") +
+      row("حالة الفهرسة",
+          d.chunks ? '<span class="badge approved">مفهرَس</span>'
+                   : '<span class="badge pending">بلا محتوى مفهرَس</span>') +
+      row("المقاطع المفهرَسة", d.chunks) +
+      (d.uploaded_at ? row("رُفع في", fmtStamp(d.uploaded_at)) : "") +
+      (d.uploaded_by ? row("رفعه", esc(d.uploaded_by)) : "") +
+    "</tbody></table></div>" +
+
+    '<p class="xs mt-5">المقاطع هي الأجزاء التي يبحث فيها المساعد ' +
+      "ويستشهد بها عند الإجابة.</p>";
+
+  const wrap = openDialog({
+    title: "تفاصيل المستند",
+    body: body,
+    confirmLabel: isManager() ? "حذف المستند" : "إغلاق",
+    danger: isManager(),
+    onConfirm: async () => {
+      closeOverlay();
+      if (isManager()) confirmDeleteDoc(hash);
+    },
+  });
+
+  if (!isManager()) {
+    wrap.querySelectorAll(".dialog-foot [data-no]").forEach(b => b.remove());
+  }
+}
+
+/* --- الحذف --- */
+
+function confirmDeleteDoc(hash) {
+  const d = findDoc(hash);
+  if (!d) return;
+
+  confirmDialog(
+    "حذف المستند؟",
+    "سيُحذف <b>" + esc(d.filename) + "</b> و" + d.chunks + " مقطعاً من قاعدة معرفة " +
+      "المؤسسة، فلن يعود المساعد يجيب منه.<br>لا يمكن التراجع.",
+    "حذف",
+    async () => {
+      try {
+        await apiJson("/documents/" + encodeURIComponent(hash), { method: "DELETE" });
+        toast("حُذف " + d.filename);
+        invalidate("docs");
+        await loadDocs(true);
+        if (state.route === "knowledge") renderDocs();
+      } catch (e) {
+        /* يبقى المستند ظاهراً — لا نُخفيه بناءً على فشل */
+        toast(e.message, "err");
+        invalidate("docs");
+        await loadDocs(true).catch(() => {});
+        if (state.route === "knowledge") renderDocs();
+      }
+    },
+    true
+  );
+}
+
+/* --- الرفع (للمدير) --- */
+
+function mountUploader() {
+  const host = $("kUpload");
+  if (!host) return;
+
+  host.innerHTML =
+    '<div class="dropzone" id="drop" tabindex="0" role="button" ' +
+      'aria-label="رفع مستند">' +
+      '<div class="h3">أضف مستنداً</div>' +
+      '<div class="xs mt-1">اسحب ملفاً أو اضغط للاختيار · PDF · Word · Excel</div>' +
+    "</div>" +
+    '<input type="file" id="file" multiple accept=".pdf,.docx,.xlsx" hidden>' +
+    '<div id="upStatus" class="stack tight mt-3"></div>';
+
+  const open = () => $("file").click();
+  $("drop").onclick = open;
+  $("drop").onkeydown = e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+  };
+  $("file").onchange = e => { uploadDocs(e.target.files); e.target.value = ""; };
+
+  ["dragenter", "dragover"].forEach(ev =>
+    $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+  ["dragleave", "drop"].forEach(ev =>
+    $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+  $("drop").addEventListener("drop", e => uploadDocs(e.dataTransfer.files));
+}
+
+/* الخادم يعيد نتيجة نهائية فقط — لا نختلق مراحل "معالجة" و"فهرسة" */
+const UPLOAD_RESULT = {
+  added:     { tone: "ok",   text: n => "أُضيف · " + n + " مقطعاً" },
+  duplicate: { tone: "warn", text: () => "مرفوع مسبقاً — لم يتغيّر شيء" },
+  empty:     { tone: "warn", text: () => "لا نص قابل للقراءة في الملف" },
+};
+
+async function uploadDocs(files) {
+  const status = $("upStatus");
+  if (!status || !files || !files.length) return;
+
+  const items = Array.from(files);
+  status.innerHTML = items.map((f, i) =>
+    '<div class="up-row" id="up-' + i + '">' +
+      '<span class="spinner" aria-hidden="true"></span>' +
+      '<span class="nm trunc grow">' + esc(f.name) + "</span>" +
+      '<span class="st sm">جارٍ الرفع…</span>' +
+    "</div>").join("");
+
+  let anyAdded = false;
+
+  for (let i = 0; i < items.length; i++) {
+    const f = items[i];
+    const row = $("up-" + i);
+    const fd = new FormData();
+    fd.append("file", f);
+
+    try {
+      const d = await apiJson("/documents", { method: "POST", body: fd });
+      const r = UPLOAD_RESULT[d.status] || { tone: "warn", text: () => d.status };
+      if (d.status === "added") anyAdded = true;
+      setUploadRow(row, r.tone, r.text(d.chunks));
+    } catch (e) {
+      /* رسالة الخادم كما هي — بلا أثر تنفيذ ولا مسارات */
+      setUploadRow(row, "err", e.message);
+    }
+  }
+
+  invalidate("docs");
+  await loadDocs(true).catch(() => {});
+  if (state.route === "knowledge") renderDocs();
+
+  if (anyAdded) toast("حُدّثت قاعدة المعرفة");
+}
+
+function setUploadRow(row, tone, text) {
+  if (!row) return;
+  const nameNode = row.querySelector(".nm");
+  const name = nameNode ? nameNode.textContent : "";
+  const mark = { ok: "✓", warn: "!", err: "✕" }[tone] || "·";
+
+  row.className = "up-row " + tone;
+  row.innerHTML =
+    '<span class="mk" aria-hidden="true">' + mark + "</span>" +
+    '<span class="nm trunc grow">' + esc(name) + "</span>" +
+    '<span class="st sm">' + esc(text) + "</span>";
+}
+
+/* ===================== التنبيهات =====================
+
+   مشتقّة من بيانات محفوظة فعلاً: طلباتي وقراراتها، والطلبات
+   المعلّقة للمدير. لا جدول إشعارات ولا سجل مخترَع.
+
+   حالة "مقروء": في الذاكرة لهذي الجلسة فقط. لا يوجد عمود في
+   القاعدة يحفظها، ولن نكتبها في localStorage — بيانات طلبات
+   الإجازة لا مكان لها في تخزين المتصفح.
+*/
+
+const seenAlerts = new Set();
+
+const ALERT_TONE = { ok: "approved", danger: "rejected", warn: "pending", info: "info" };
+
+function buildNotifications() {
+  const out = [];
+  const R = resources.requests;
+  const P = resources.pending;
+  const D = resources.decisions;
+  const L = resources.leave;
+
+  /* --- للمدير: ما ينتظر قراره --- */
+  if (isManager() && P.state === "ready" && P.data.length) {
+    const oldest = P.data[0];
+    out.push({
+      key: "pending:" + P.data.length,
+      tone: "info", icon: "✓",
+      title: P.data.length + " طلب بانتظار مراجعتك",
+      body: "أقدمها: " + oldest.employee_name + " · " + oldest.days + " أيام",
+      at: oldest.start_date || "",
+      go: "approvals", label: "مراجعة",
+    });
+  }
+
+  /* --- قرارات على طلباتي --- */
+  if (R.state === "ready") {
+    (R.data || []).forEach(r => {
+      if (r.status === "approved") {
+        out.push({
+          key: "req:" + r.id + ":approved",
+          tone: "ok", icon: "✓",
+          title: "اعتُمد طلب إجازتك",
+          body: fmtDate(r.start_date) + " ← " + fmtDate(r.end_date) + " · " + r.days + " أيام" +
+                (r.decided_by_name ? " · اعتمده " + r.decided_by_name : ""),
+          at: r.decided_at || r.created_at,
+          go: "requests", label: "عرض",
+        });
+      } else if (r.status === "rejected") {
+        out.push({
+          key: "req:" + r.id + ":rejected",
+          tone: "danger", icon: "✕",
+          title: "رُفض طلب إجازتك",
+          body: (r.rejection_reason || (fmtDate(r.start_date) + " · " + r.days + " أيام")) +
+                (r.decided_by_name ? " · " + r.decided_by_name : ""),
+          at: r.decided_at || r.created_at,
+          go: "requests", label: "عرض",
+        });
+      } else if (r.status === "pending") {
+        out.push({
+          key: "req:" + r.id + ":pending",
+          tone: "warn", icon: "⋯",
+          title: "طلبك قيد المراجعة",
+          body: fmtDate(r.start_date) + " ← " + fmtDate(r.end_date) + " · " + r.days + " أيام",
+          at: r.created_at,
+          go: "requests", label: "متابعة",
+        });
+      } else if (r.status === "cancelled") {
+        out.push({
+          key: "req:" + r.id + ":cancelled",
+          tone: "info", icon: "—",
+          title: "أُلغي طلبك",
+          body: fmtDate(r.start_date) + " · " + r.days + " أيام عادت لرصيدك",
+          at: r.created_at,
+          go: "requests", label: "عرض",
+        });
+      }
+    });
+  }
+
+  /* --- للمدير: قراراته الأخيرة --- */
+  if (isManager() && D.state === "ready") {
+    (D.data || []).slice(0, 5).forEach(d => {
+      out.push({
+        key: "dec:" + d.id,
+        tone: d.status === "approved" ? "ok" : "danger",
+        icon: d.status === "approved" ? "✓" : "✕",
+        title: (d.status === "approved" ? "اعتمدتَ طلب " : "رفضتَ طلب ") + d.employee_name,
+        body: fmtDate(d.start_date) + " ← " + fmtDate(d.end_date) + " · " + d.days + " أيام",
+        at: d.decided_at || d.created_at,
+        go: "approvals", label: "الموافقات",
+      });
+    });
+  }
+
+  /* --- رصيد منخفض --- */
+  if (L.state === "ready" && L.data && L.data.available <= 2) {
+    out.push({
+      key: "balance:" + L.data.available,
+      tone: "warn", icon: "!",
+      title: "رصيد إجازتك منخفض",
+      body: "المتاح " + L.data.available + " يوماً فقط من " + L.data.annual_leave + ".",
+      at: "",
+      go: "workspace", label: "التفاصيل",
+    });
+  }
+
+  out.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+  return out;
+}
+
+const unreadCount = () => buildNotifications().filter(n => !seenAlerts.has(n.key)).length;
+
+PAGES.alerts = {
+  render() {
+    return '<div class="page"><div class="page-in stack">' +
+        '<section id="alList">' + skeletonCard(3) + "</section>" +
+      "</div></div>";
+  },
+
+  async mount() {
+    await Promise.allSettled([
+      loadRequests().catch(() => resources.requests),
+      loadPending().catch(() => resources.pending),
+      loadDecisions().catch(() => resources.decisions),
+      loadLeave().catch(() => resources.leave),
+    ]);
+    if (state.route !== "alerts") return;
+    renderAlerts();
+  },
+};
+
+function renderAlerts() {
+  const host = $("alList");
+  if (!host) return;
+
+  const failed = ["requests", "pending", "decisions", "leave"]
+    .filter(k => resources[k].state === "error");
+
+  const items = buildNotifications();
+  const unread = items.filter(n => !seenAlerts.has(n.key)).length;
+
+  $("pgActions").innerHTML = unread
+    ? '<button class="btn ghost sm" id="alMarkAll">تعليم الكل كمقروء</button>'
+    : "";
+
+  if (!items.length) {
+    host.innerHTML =
+      (failed.length ? partialWarning(failed) : "") +
+      '<div class="card">' +
+        emptyState("◔", "لا تنبيهات",
+          "سنخبرك فور تغيّر شيء يخصّك — قرار على طلبك أو طلب ينتظر مراجعتك.") +
+      "</div>";
+    renderNav();
+    return;
+  }
+
+  host.innerHTML =
+    (failed.length ? partialWarning(failed) : "") +
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">التنبيهات</span>' +
+        (unread ? '<span class="badge accent">' + unread + " جديد</span>" : "") +
+        '<span class="badge plain">' + items.length + "</span></div>" +
+      '<ul class="al-list">' +
+        items.map(n =>
+          '<li class="al-item' + (seenAlerts.has(n.key) ? " seen" : "") + '">' +
+            '<span class="badge ' + ALERT_TONE[n.tone] + ' plain" aria-hidden="true">' +
+              n.icon + "</span>" +
+            '<div class="grow">' +
+              '<div class="h3">' + esc(n.title) + "</div>" +
+              '<div class="xs mt-1">' + esc(n.body) + "</div>" +
+              (n.at ? '<div class="at">' + fmtStamp(n.at) + "</div>" : "") +
+            "</div>" +
+            '<button class="btn sm ghost" data-nav="' + n.go + '" data-key="' + esc(n.key) + '">' +
+              esc(n.label) + "</button>" +
+          "</li>").join("") +
+      "</ul>" +
+    "</div>";
+
+  host.querySelectorAll("[data-key]").forEach(b => {
+    b.onclick = () => {
+      seenAlerts.add(b.dataset.key);
+      renderNav();
+      go(b.dataset.nav);
+    };
+  });
+
+  if ($("alMarkAll")) {
+    $("alMarkAll").onclick = () => {
+      buildNotifications().forEach(n => seenAlerts.add(n.key));
+      renderAlerts();
+      renderNav();
+    };
+  }
+
+  renderNav();
+}
+
+const partialWarning = keys =>
+  '<div class="card notice warn-notice"><div class="sm">' +
+    "تعذّر تحميل بعض المصادر — التنبيهات المعروضة ناقصة." +
+  "</div></div>";
+
+/* ===================== مساحة المدير ===================== */
+
+const MGR_ACTIONS = [
+  { ic: "✓", t: "مراجعة الطلبات", s: "اعتماد أو رفض",      go: "approvals" },
+  { ic: "◔", t: "التنبيهات",      s: "ما يحتاج انتباهك",    go: "alerts" },
+  { ic: "◫", t: "التحليلات",      s: "الاستخدام والتكلفة",  go: "analytics" },
+  { ic: "✦", t: "المساعد",        s: "اسأل عن أي شيء",      go: "assistant" },
+];
+
+PAGES.team = {
+  render() {
+    const name = state.user ? String(state.user.name).split(" ")[0] : "";
+    const today = new Date().toLocaleDateString("ar-SA-u-ca-gregory",
+      { weekday: "long", day: "numeric", month: "long" });
+
+    return '<div class="page"><div class="page-in stack" style="gap:var(--s6)">' +
+
+        '<header class="welcome">' +
+          '<div class="grow">' +
+            '<h2 class="h1">' + greeting() + "، " + esc(name) + "</h2>" +
+            '<p class="sm mt-1">' + esc(today) + " — نظرة على طلبات فريقك.</p>" +
+          "</div>" +
+          '<span class="badge approved" id="tmState">جاهزة</span>' +
+        "</header>" +
+
+        '<section id="tmKpi">' + metricSkeleton() + "</section>" +
+
+        "<section>" +
+          '<h3 class="label">إجراءات سريعة</h3>' +
+          '<div class="quick">' +
+            MGR_ACTIONS.map(a =>
+              '<button class="action" data-nav="' + a.go + '">' +
+                '<span class="ic" aria-hidden="true">' + a.ic + "</span>" +
+                '<span class="tx"><span class="t">' + esc(a.t) + "</span>" +
+                '<span class="s">' + esc(a.s) + "</span></span>" +
+              "</button>").join("") +
+          "</div>" +
+        "</section>" +
+
+        '<section id="tmPending">' + skeletonCard(3) + "</section>" +
+        '<section id="tmDecisions">' + skeletonCard(2) + "</section>" +
+
+      "</div></div>";
+  },
+
+  async mount() {
+    wireNav($("view"));
+
+    await Promise.allSettled([
+      loadPending().catch(() => resources.pending),
+      loadDecisions().catch(() => resources.decisions),
+    ]);
+    if (state.route !== "team") return;
+
+    renderTeamKpi();
+    renderTeamPending();
+    renderTeamDecisions();
+    renderTeamState();
+    renderNav();
+  },
+};
+
+function renderTeamState() {
+  const el = $("tmState");
+  if (!el) return;
+  const failed = ["pending", "decisions"].filter(k => resources[k].state === "error");
+  if (failed.length) { el.className = "badge pending"; el.textContent = "بعض البيانات غير متاحة"; }
+  else { el.className = "badge approved"; el.textContent = "جاهزة"; }
+}
+
+function renderTeamKpi() {
+  const host = $("tmKpi");
+  if (!host) return;
+
+  const P = resources.pending, D = resources.decisions;
+  const dec = D.state === "ready" ? (D.data || []) : null;
+
+  const count = s => (dec ? dec.filter(d => d.status === s).length : "—");
+  const pendingDays = P.state === "ready"
+    ? (P.data || []).reduce((sum, r) => sum + (r.days || 0), 0) : "—";
+
+  host.innerHTML = '<div class="grid g4">' +
+      metricCard(P.state === "ready" ? P.data.length : "—", "بانتظار قرارك",
+                 P.state === "error" ? "غير متاح حالياً" : "طلبات معلّقة",
+                 P.state === "ready" && P.data.length ? "warn" : "") +
+      metricCard(pendingDays, "يوماً معلّقاً", "مجموع أيام الطلبات") +
+      metricCard(count("approved"), "اعتُمد مؤخراً", "من آخر 10 قرارات", "ok") +
+      metricCard(count("rejected"), "رُفض مؤخراً", "من آخر 10 قرارات") +
+    "</div>";
+}
+
+function renderTeamPending() {
+  const host = $("tmPending");
+  if (!host) return;
+
+  const P = resources.pending;
+
+  if (P.state === "loading" || P.state === "idle") { host.innerHTML = skeletonCard(3); return; }
+
+  if (P.state === "error") {
+    host.innerHTML = retryCard("tmRetryP", "تعذّر تحميل الطلبات المعلّقة", P.error, async () => {
+      $("tmPending").innerHTML = skeletonCard(3);
+      await loadPending(true);
+      if (state.route === "team") { renderTeamPending(); renderTeamKpi(); renderTeamState(); }
+    });
+    return;
+  }
+
+  const list = P.data || [];
+  if (!list.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("✓", "لا توجد طلبات بانتظار الموافقة", "راجعت كل ما وصلك.") + "</div>";
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">بانتظار قرارك</span>' +
+        '<span class="badge pending">' + list.length + "</span>" +
+        '<button class="btn sm ghost" data-nav="approvals">كل الطلبات</button></div>' +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>الموظف</th><th>النوع</th><th>الفترة</th><th>الأيام</th>" +
+        "<th>الرصيد بعد</th>" +
+        '<th class="end">إجراء</th>' +
+      "</tr></thead><tbody>" +
+        list.slice(0, 6).map(q =>
+          "<tr>" +
+            "<td>" + esc(q.employee_name) + "</td>" +
+            '<td class="nowrap">إجازة سنوية</td>' +
+            '<td class="nowrap">' + fmtDate(q.start_date) + " ← " + fmtDate(q.end_date) + "</td>" +
+            '<td class="nowrap">' + q.days + "</td>" +
+            '<td class="nowrap">' + (q.balance_after_approval == null ? "—" :
+              '<span class="' + (q.balance_after_approval < 0 ? "neg" : "") + '">' +
+              q.balance_after_approval + "</span>") + "</td>" +
+            '<td class="end nowrap">' +
+              '<button class="btn sm ok" data-ok="' + q.id + '">اعتماد</button>' +
+              '<button class="btn sm ghost danger-text" data-no="' + q.id + '">رفض</button>' +
+            "</td>" +
+          "</tr>").join("") +
+      "</tbody></table></div>" +
+    "</div>";
+
+  wireNav(host);
+  /* نفس مسار القرار المستخدَم في صفحة الموافقات — بلا تجاوز للتأكيد */
+  host.querySelectorAll("[data-ok]").forEach(b => {
+    b.onclick = () => decide(+b.dataset.ok, "approve");
+  });
+  host.querySelectorAll("[data-no]").forEach(b => {
+    b.onclick = () => decide(+b.dataset.no, "reject");
+  });
+}
+
+function renderTeamDecisions() {
+  const host = $("tmDecisions");
+  if (!host) return;
+
+  const D = resources.decisions;
+
+  if (D.state === "loading" || D.state === "idle") { host.innerHTML = skeletonCard(2); return; }
+
+  if (D.state === "error") {
+    host.innerHTML = retryCard("tmRetryD", "تعذّر تحميل القرارات الأخيرة", D.error, async () => {
+      $("tmDecisions").innerHTML = skeletonCard(2);
+      await loadDecisions(true);
+      if (state.route === "team") { renderTeamDecisions(); renderTeamKpi(); renderTeamState(); }
+    });
+    return;
+  }
+
+  const list = D.data || [];
+  if (!list.length) {
+    host.innerHTML = '<div class="card">' +
+      emptyState("≡", "لا قرارات بعد", "ستظهر هنا الطلبات التي تعتمدها أو ترفضها.") + "</div>";
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">آخر القرارات</span>' +
+        '<span class="badge plain">' + list.length + "</span></div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>الموظف</th><th>الفترة</th><th>الأيام</th><th>القرار</th>" +
+        "<th>التاريخ</th><th>اتخذه</th>" +
+      "</tr></thead><tbody>" +
+        list.map(d =>
+          '<tr data-dec="' + d.id + '">' +
+            "<td>" + esc(d.employee_name) + "</td>" +
+            '<td class="nowrap">' + fmtDate(d.start_date) + " ← " + fmtDate(d.end_date) + "</td>" +
+            '<td class="nowrap">' + d.days + "</td>" +
+            "<td>" + badge(d.status) + "</td>" +
+            '<td class="sm nowrap">' + fmtStamp(d.decided_at) + "</td>" +
+            '<td class="sm nowrap">' + esc(d.decided_by_name || "—") + "</td>" +
+          "</tr>").join("") +
+      "</tbody></table></div>" +
+    "</div>";
+}
+
+function retryCard(btnId, title, message, onRetry) {
+  setTimeout(() => { const b = $(btnId); if (b) b.onclick = onRetry; }, 0);
+  return '<div class="card"><div class="state error">' +
+      '<div class="ic" aria-hidden="true">⚠</div>' +
+      '<div class="t">' + esc(title) + "</div>" +
+      '<div class="s">' + esc(message) + "</div>" +
+      '<button class="btn sm" id="' + btnId + '">إعادة المحاولة</button>' +
+    "</div></div>";
+}
+
+/* ===================== المساعد ===================== */
+
+let pendingQuestion = null;   /* سؤال ممرَّر من صفحة أخرى */
+
+const current = () => state.sessions.find(s => s.id === state.currentId) || null;
+const saveSessions = () => store.set("sessions", state.sessions.slice(0, 25));
 
 function newSession() {
   const s = { id: Date.now().toString(36), title: "محادثة جديدة", ts: Date.now(), messages: [] };
@@ -484,255 +2791,185 @@ function newSession() {
   return s;
 }
 
-/* ---------- أدوات ---------- */
+const SUGGESTED = [
+  ["سياسات",  "ما شروط العمل عن بعد؟"],
+  ["رصيدي",   "كم رصيد إجازتي المتاح؟"],
+  ["إجراءات", "كيف أقدّم طلب إجازة؟"],
+  ["إجازات",  "كم يوماً إجازة أمومة؟"],
+];
 
-function toast(msg, kind) {
-  const t = document.createElement("div");
-  t.className = "toast " + (kind || "ok");
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3200);
-}
+PAGES.assistant = {
+  render() {
+    return '<div class="chat-wrap">' +
+        '<div class="chat-scroll" id="chatScroll"><div class="chat-in" id="thread"></div></div>' +
+        '<div class="composer"><div class="composer-in">' +
+          '<div class="box">' +
+            '<textarea id="input" rows="1" placeholder="اكتب سؤالك أو طلبك…"></textarea>' +
+            '<div class="bar">' +
+              '<span class="hint" id="modeHint"></span>' +
+              '<span class="grow"></span>' +
+              '<button class="send" id="send" title="إرسال">↑</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="foot-note">قد يخطئ المساعد — تحقّق من الأرقام في المصدر.</div>' +
+        '</div></div>' +
+      '</div>';
+  },
 
-function scrollDown() {
-  const s = el("scroll");
-  s.scrollTop = s.scrollHeight;
-}
-
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast("تم النسخ");
-    return;
-  } catch (e) { /* المتصفح قد يمنع الحافظة داخل iframe */ }
-
-  const ta = document.createElement("textarea");
-  ta.value = text;
-  ta.style.position = "fixed";
-  ta.style.opacity = "0";
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand("copy"); toast("تم النسخ"); }
-  catch (e) { toast("تعذّر النسخ", "err"); }
-  ta.remove();
-}
-
-function download(name, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
-/* ---------- الحالة والمستندات ---------- */
-
-async function refreshStatus() {
-  const box = el("status");
-  try {
-    const r = await fetch(API + "/health");
-    const d = await r.json();
-    box.className = "status ok";
-    box.innerHTML = '<i></i><span>متصل — ' + d.chunks + ' قطعة</span>';
-  } catch (e) {
-    box.className = "status bad";
-    box.innerHTML = '<i></i><span>الخادم متوقّف</span>';
-  }
-}
-
-function renderDocs() {
-  const box = el("docs");
-  const q = state.docFilter.trim().toLowerCase();
-  const list = q ? state.docs.filter(d => d.filename.toLowerCase().includes(q)) : state.docs;
-
-  el("docCount").textContent = state.docs.length ? "(" + state.docs.length + ")" : "";
-
-  if (!state.docs.length) {
-    box.innerHTML = '<div class="empty">لا توجد مستندات بعد.</div>';
-    return;
-  }
-  if (!list.length) {
-    box.innerHTML = '<div class="empty">لا نتائج للبحث.</div>';
-    return;
-  }
-
-  box.innerHTML = list.map(d =>
-    '<div class="doc">' +
-      '<span class="kind">' + esc(ext(d.filename)) + '</span>' +
-      '<div class="meta">' +
-        '<div class="fname" title="' + esc(d.filename) + '">' + esc(d.filename) + '</div>' +
-        '<div class="chunks">' + d.chunks + ' قطعة</div>' +
+  mount() {
+    /* أدوات الرأس */
+    $("pgActions").innerHTML =
+      '<div class="seg" style="width:190px">' +
+        '<button id="mAgent" class="' + (state.mode === "agent" ? "on" : "") + '">ذكي</button>' +
+        '<button id="mDocs" class="' + (state.mode === "docs" ? "on" : "") + '">مستندات</button>' +
       '</div>' +
-      '<button class="del" data-h="' + esc(d.doc_hash) + '" title="حذف">🗑</button>' +
-    '</div>').join("");
+      '<button class="btn ghost sm" id="newChat">محادثة جديدة</button>' +
+      '<button class="btn ghost sm" id="exportChat">تصدير</button>';
 
-  box.querySelectorAll(".del").forEach(b => { b.onclick = () => removeDoc(b.dataset.h); });
-}
-
-async function refreshDocs() {
-  try {
-    const r = await fetch(API + "/documents");
-    state.docs = await r.json();
-  } catch (e) {
-    state.docs = [];
-  }
-  renderDocs();
-}
-
-async function removeDoc(hash) {
-  try {
-    const r = await fetch(API + "/documents/" + hash, { method: "DELETE" });
-    if (!r.ok && r.status !== 204) throw new Error(r.status);
-    toast("تم الحذف");
-    refreshDocs();
-    refreshStatus();
-  } catch (e) { toast("تعذّر الحذف", "err"); }
-}
-
-async function upload(files) {
-  for (const f of files) {
-    const fd = new FormData();
-    fd.append("file", f);
-    try {
-      const r = await fetch(API + "/documents", { method: "POST", body: fd });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || r.status);
-      if (d.status === "added") toast(f.name + " — " + d.chunks + " قطعة");
-      else if (d.status === "duplicate") toast(f.name + " مرفوع مسبقاً");
-      else toast(f.name + " بلا نص قابل للقراءة", "err");
-    } catch (e) { toast(f.name + ": " + e.message, "err"); }
-  }
-  refreshDocs();
-  refreshStatus();
-}
-
-/* ---------- المحادثات المحفوظة ---------- */
-
-function renderHistory() {
-  const box = el("hist");
-  const withMsgs = state.sessions.filter(s => s.messages.length);
-
-  el("histCount").textContent = withMsgs.length ? "(" + withMsgs.length + ")" : "";
-
-  if (!withMsgs.length) {
-    box.innerHTML = '<div class="empty">لا محادثات محفوظة.</div>';
-    return;
-  }
-
-  box.innerHTML = withMsgs.map(s =>
-    '<button class="hist ' + (s.id === state.currentId ? "on" : "") + '" data-id="' + s.id + '">' +
-      '<span class="t">' + esc(s.title) + '</span>' +
-      '<span class="x" data-del="' + s.id + '" title="حذف">✕</span>' +
-    '</button>').join("");
-
-  box.querySelectorAll(".hist").forEach(b => {
-    b.onclick = e => {
-      if (e.target.dataset.del) { deleteSession(e.target.dataset.del); return; }
-      state.currentId = b.dataset.id;
+    $("mAgent").onclick = () => setMode("agent");
+    $("mDocs").onclick  = () => setMode("docs");
+    $("newChat").onclick = () => {
+      const c = current();
+      if (!c || c.messages.length) newSession();
+      $("input").value = "";
       renderThread();
-      renderHistory();
+      $("input").focus();
     };
-  });
+    $("exportChat").onclick = exportChat;
+
+    const box = $("input");
+    box.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+    box.addEventListener("input", e => {
+      e.target.style.height = "auto";
+      e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px";
+    });
+    $("send").onclick = send;
+
+    setMode(state.mode);
+    renderThread();
+
+    if (pendingQuestion) {
+      const q = pendingQuestion;
+      pendingQuestion = null;
+      run(q);
+    } else {
+      box.focus();
+    }
+  },
+};
+
+function setMode(m) {
+  state.mode = m;
+  const a = $("mAgent"), d = $("mDocs");
+  if (a) a.classList.toggle("on", m === "agent");
+  if (d) d.classList.toggle("on", m === "docs");
+  const h = $("modeHint");
+  if (h) h.textContent = m === "agent"
+    ? "الوضع الذكي — يبحث وينفّذ" : "المستندات — بحث نصّي فقط";
 }
 
-function deleteSession(id) {
-  state.sessions = state.sessions.filter(s => s.id !== id);
-  if (state.currentId === id) state.currentId = null;
-  saveSessions();
-  renderHistory();
-  renderThread();
+function welcomeHTML() {
+  return '<div class="stack" style="gap:var(--s6);padding-top:var(--s7)">' +
+      '<div style="text-align:center">' +
+        '<div class="h1">كيف أقدر أساعدك؟</div>' +
+        '<div class="sm" style="margin-top:6px">أجيب من مستندات شركتك وبياناتها، وأوضّح المصدر.</div>' +
+      '</div>' +
+      '<div class="grid g2">' +
+        SUGGESTED.map((p, i) =>
+          '<button class="action" data-s="' + i + '">' +
+            '<span class="tx"><span class="s">' + esc(p[0]) + '</span>' +
+            '<span class="t" style="margin-top:3px">' + esc(p[1]) + '</span></span>' +
+          '</button>').join("") +
+      '</div>' +
+    '</div>';
 }
-
-/* ---------- عرض المحادثة ---------- */
 
 function sourcesHTML(sources) {
   if (!sources || !sources.length) return "";
-  const items = sources.map((s, i) =>
-    '<details class="src">' +
-      '<summary>' +
-        '<span class="n">' + (i + 1) + '</span>' +
-        '<span class="f">' + esc(s.doc || s.source) + '</span>' +
-        '<span class="l">' + esc(s.chunk || s.location) + '</span>' +
-      '</summary>' +
-      '<div class="t">' + esc(s.text || "النص غير متاح لهذا المصدر.") + '</div>' +
-    '</details>').join("");
-  return '<details class="srcs"><summary>المصادر (' + sources.length + ') ▾</summary>' + items + '</details>';
+  return '<details class="card flat" style="margin-top:var(--s3);padding:var(--s3) var(--s4)">' +
+    '<summary class="sm" style="cursor:pointer">المصادر (' + sources.length + ')</summary>' +
+    '<div class="stack tight" style="margin-top:var(--s3)">' +
+      sources.map((s, i) =>
+        '<div class="card" style="padding:var(--s3)">' +
+          '<div class="row" style="margin-bottom:6px">' +
+            '<span class="badge accent plain">' + (i + 1) + '</span>' +
+            '<span class="h3 grow trunc">' + esc(s.doc || s.source || "") + '</span>' +
+            '<span class="xs">' + esc(s.chunk || s.location || "") + '</span>' +
+          '</div>' +
+          '<div class="xs" style="white-space:pre-wrap">' + esc(s.text || "") + '</div>' +
+        '</div>').join("") +
+    '</div></details>';
 }
 
 function turnHTML(m, idx, isLast) {
   if (m.role === "user") {
-    return '<div class="turn user">' +
-        '<div class="bubble">' + esc(m.text) + '</div>' +
-        '<span class="who"><span class="ts">' + esc(m.ts) + '</span></span>' +
-      '</div>';
+    return '<div class="turn me"><div class="bubble">' + esc(m.text) + '</div></div>';
   }
 
-  const tools = (m.tools && m.tools.length)
-    ? '<div class="chips">' + m.tools.map(t => '<span class="chip">✓ ' + esc(t) + '</span>').join("") + '</div>'
-    : "";
-
-  const acts = m.text
-    ? '<div class="acts">' +
-        '<button data-copy="' + idx + '">نسخ</button>' +
-        (isLast ? '<button data-regen="1">إعادة توليد</button>' : "") +
-      '</div>'
+  const steps = (m.tools && m.tools.length)
+    ? '<div class="steps">' + m.tools.map(t =>
+        '<span class="step done">' + esc(toolDone(t)) + '</span>').join("") + '</div>'
     : "";
 
   const body = m.text
     ? esc(m.text)
-    : '<div class="typing"><i></i><i></i><i></i></div>';
+    : (m.running
+        ? '<span class="step run">' + esc(toolRunning(m.running)) + '</span>'
+        : '<span class="typing"><i></i><i></i><i></i></span>');
+
+  const acts = m.text
+    ? '<div class="turn-acts">' +
+        '<button class="btn sm ghost" data-copy="' + idx + '">نسخ</button>' +
+        (isLast ? '<button class="btn sm ghost" data-regen="1">إعادة توليد</button>' : "") +
+      '</div>'
+    : "";
 
   return '<div class="turn" data-idx="' + idx + '">' +
-      '<div class="who"><span class="dot"></span><span class="nm">المساعد</span><span class="ts">' + esc(m.ts) + '</span></div>' +
-      tools +
+      '<div class="from"><span class="av">م</span><span class="nm">المساعد</span>' +
+      '<span class="ts">' + esc(m.ts) + '</span></div>' +
+      steps +
       '<div class="answer">' + body + '</div>' +
-      sourcesHTML(m.sources) +
-      acts +
+      sourcesHTML(m.sources) + acts +
     '</div>';
 }
 
 function renderThread() {
   const s = current();
-  const thread = el("thread");
-  const welcome = el("welcome");
+  const thread = $("thread");
+  if (!thread) return;
 
   if (!s || !s.messages.length) {
-    // التفريغ صريح — الاعتماد على الإخفاء وحده يترك محتوىً قديماً
-    thread.innerHTML = "";
-    thread.hidden = true;
-    welcome.hidden = false;
-    el("scroll").scrollTop = 0;
+    thread.innerHTML = welcomeHTML();
+    thread.querySelectorAll("[data-s]").forEach(b => {
+      b.onclick = () => run(SUGGESTED[+b.dataset.s][1]);
+    });
     return;
   }
 
-  welcome.hidden = true;
-  thread.hidden = false;
-
-  const lastAssistant = s.messages.map(m => m.role).lastIndexOf("assistant");
-  thread.innerHTML = s.messages.map((m, i) => turnHTML(m, i, i === lastAssistant)).join("");
+  const lastA = s.messages.map(m => m.role).lastIndexOf("assistant");
+  thread.innerHTML = s.messages.map((m, i) => turnHTML(m, i, i === lastA)).join("");
 
   thread.querySelectorAll("[data-copy]").forEach(b => {
     b.onclick = () => copyText(s.messages[+b.dataset.copy].text);
   });
-
-  const regen = thread.querySelector("[data-regen]");
-  if (regen) regen.onclick = regenerate;
+  const rg = thread.querySelector("[data-regen]");
+  if (rg) rg.onclick = regenerate;
 
   scrollDown();
 }
 
-/* ---------- الاستدعاء ---------- */
+function scrollDown() {
+  const s = $("chatScroll");
+  if (s) s.scrollTop = s.scrollHeight;
+}
 
-/* يبني قائمة الرسائل: الأدوار السابقة المكتملة ثم السؤال الحالي.
-   نتجاوز آخر رسالتين لأنهما السؤال الحالي وردّه الفارغ. */
+/* نستبعد الأزواج غير المكتملة — سؤال محجوب لا يتسلّل كسياق */
 function buildMessages(question) {
   const s = current();
   const past = s ? s.messages.slice(0, -2) : [];
   const msgs = [];
-
   for (let i = 0; i < past.length - 1; i++) {
     const u = past[i], a = past[i + 1];
     if (u.role !== "user" || a.role !== "assistant") continue;
@@ -741,22 +2978,19 @@ function buildMessages(question) {
     msgs.push({ role: "assistant", content: a.text });
     i++;
   }
-
   msgs.push({ role: "user", content: question });
   return msgs;
 }
 
 async function askAgent(question, onDelta, onTools, onSources) {
-  const res = await fetch(API + "/chat", {
+  const res = await api("/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: buildMessages(question),
-      user_name: state.userName,
-    }),
+    body: JSON.stringify({ messages: buildMessages(question) }),
   });
+
   if (!res.ok) {
-    let detail = "HTTP " + res.status;
+    let detail = "خطأ " + res.status;
     try { const j = await res.json(); detail = j.detail || detail; } catch (e) {}
     const err = new Error(detail);
     err.blocked = res.status === 400;
@@ -779,7 +3013,6 @@ async function askAgent(question, onDelta, onTools, onSources) {
       if (line.indexOf("data:") !== 0) continue;
       const raw = line.slice(5).trim();
       if (!raw || raw === "[DONE]") continue;
-
       let p = null;
       try { p = JSON.parse(raw); } catch (e) { acc += raw; onDelta(acc); continue; }
 
@@ -792,45 +3025,48 @@ async function askAgent(question, onDelta, onTools, onSources) {
 }
 
 async function askDocs(question) {
-  const res = await fetch(API + "/ask", {
+  return apiJson("/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question: question }),
   });
-  const d = await res.json();
-  if (!res.ok) throw new Error(d.detail || res.status);
-  return d;
 }
 
 async function run(question) {
   if (state.busy) return;
+  if (state.route !== "assistant") { pendingQuestion = question; return go("assistant"); }
+
   state.busy = true;
-  el("send").disabled = true;
+  const btn = $("send");
+  if (btn) btn.disabled = true;
 
   let s = current();
   if (!s) s = newSession();
-  if (!s.messages.length) s.title = question.slice(0, 42);
+  if (!s.messages.length) s.title = question.slice(0, 44);
 
-  s.messages.push({ role: "user", text: question, ts: now() });
-  const reply = { role: "assistant", text: "", tools: [], sources: [], ts: now() };
+  s.messages.push({ role: "user", text: question, ts: timeNow() });
+  const reply = { role: "assistant", text: "", tools: [], sources: [], ts: timeNow() };
   s.messages.push(reply);
 
-  const replyIdx = s.messages.length - 1;
+  const idx = s.messages.length - 1;
   renderThread();
-  renderHistory();
 
-  const live = () => {
-    const turn = el("thread").querySelector('[data-idx="' + replyIdx + '"]');
-    return turn ? turn.querySelector(".answer") : null;
+  const node = sel => {
+    const t = $("thread").querySelector('[data-idx="' + idx + '"]');
+    return t ? t.querySelector(sel) : null;
   };
 
   try {
     if (state.mode === "agent") {
       reply.text = await askAgent(
         question,
-        acc => { const n = live(); if (n) { n.textContent = acc; scrollDown(); } },
-        tl  => { reply.tools = tl; },
-        sr  => { reply.sources = sr; }
+        acc => { const n = node(".answer"); if (n) { n.textContent = acc; scrollDown(); } },
+        tl => {
+          reply.tools = tl;
+          const n = node(".steps") || node(".answer");
+          renderThread();
+        },
+        sr => { reply.sources = sr; }
       );
     } else {
       const d = await askDocs(question);
@@ -840,40 +3076,43 @@ async function run(question) {
     if (!reply.text.trim()) reply.text = "لم تصل إجابة من الخادم.";
     if (!reply.tools.length && !reply.sources.length) reply.blocked = true;
   } catch (e) {
-    reply.text = (e.blocked ? "" : "⚠️ ") + e.message;
+    reply.text = (e.blocked ? "" : "تعذّر إتمام الطلب: ") + e.message;
     reply.blocked = true;
   }
 
   saveSessions();
   renderThread();
-  renderHistory();
+
+  /* عملية كتابة قد تكون غيّرت الطلبات المعلّقة — نحدّث العدّاد */
+  const WRITE = ["submit_leave_request", "cancel_leave_request", "review_leave_request"];
+  if (reply.tools.some(t => WRITE.includes(t))) {
+    invalidate("pending", "requests", "leave", "decisions");
+    try { await loadPending(true); renderNav(); } catch (e) { /* العدّاد ليس حرجاً */ }
+  }
 
   state.busy = false;
-  el("send").disabled = false;
-  el("input").focus();
+  if ($("send")) $("send").disabled = false;
+  if ($("input")) $("input").focus();
 }
 
 function regenerate() {
   const s = current();
   if (!s || state.busy) return;
-
   let lastUser = null;
   for (let i = s.messages.length - 1; i >= 0; i--) {
     if (s.messages[i].role === "user") { lastUser = s.messages[i]; break; }
   }
   if (!lastUser) return;
-
-  const lastAssistant = s.messages.map(m => m.role).lastIndexOf("assistant");
-  if (lastAssistant > -1) s.messages.splice(lastAssistant, 1);
-  const lastUserIdx = s.messages.map(m => m.role).lastIndexOf("user");
-  if (lastUserIdx > -1) s.messages.splice(lastUserIdx, 1);
-
+  const la = s.messages.map(m => m.role).lastIndexOf("assistant");
+  if (la > -1) s.messages.splice(la, 1);
+  const lu = s.messages.map(m => m.role).lastIndexOf("user");
+  if (lu > -1) s.messages.splice(lu, 1);
   renderThread();
   run(lastUser.text);
 }
 
 function send() {
-  const box = el("input");
+  const box = $("input");
   const q = box.value.trim();
   if (!q) return;
   box.value = "";
@@ -881,216 +3120,506 @@ function send() {
   run(q);
 }
 
-/* ---------- التصدير ---------- */
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("تم النسخ"); return; } catch (e) {}
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); toast("تم النسخ"); }
+  catch (e) { toast("تعذّر النسخ", "err"); }
+  ta.remove();
+}
 
-function exportMd() {
+function exportChat() {
   const s = current();
-  if (!s || !s.messages.length) { toast("لا توجد محادثة لتصديرها", "err"); return; }
+  if (!s || !s.messages.length) { toast("لا محادثة لتصديرها", "err"); return; }
 
   const lines = ["# " + s.title, "", "*" + new Date(s.ts).toLocaleString("ar-SA") + "*", ""];
-
   for (const m of s.messages) {
-    if (m.role === "user") {
-      lines.push("## سؤال", "", m.text, "");
-      continue;
-    }
+    if (m.role === "user") { lines.push("## سؤال", "", m.text, ""); continue; }
     lines.push("### إجابة", "", m.text, "");
-    if (m.tools && m.tools.length) lines.push("**الأدوات:** " + m.tools.join("، "), "");
+    if (m.tools && m.tools.length) lines.push("**المصادر المستخدمة:** " + m.tools.map(toolDone).join("، "), "");
     if (m.sources && m.sources.length) {
-      lines.push("**المصادر:**", "");
-      m.sources.forEach((src, i) => {
-        lines.push((i + 1) + ". `" + (src.doc || src.source) + "` — " + (src.chunk || src.location));
-        if (src.text) lines.push("   > " + String(src.text).replace(/\n/g, "\n   > "));
-      });
+      lines.push("**المراجع:**", "");
+      m.sources.forEach((src, i) =>
+        lines.push((i + 1) + ". " + (src.doc || src.source) + " — " + (src.chunk || src.location)));
       lines.push("");
     }
     lines.push("---", "");
   }
 
-  download("محادثة-" + s.id + ".md", lines.join("\n"));
+  const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = "محادثة-" + s.id + ".md";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
   toast("تم التصدير");
 }
 
-/* ---------- الربط ---------- */
+/* ===================== الموافقات ===================== */
 
-el("suggest").innerHTML = SUGGESTIONS.map((pair, i) =>
-  '<button data-i="' + i + '"><span class="tag">' + esc(pair[0]) + '</span>' + esc(pair[1]) + '</button>').join("");
+PAGES.approvals = {
+  render() { return '<div class="page"><div class="page-in" id="apvBox">' + skeletonCard(3) + "</div></div>"; },
 
-el("suggest").querySelectorAll("button").forEach(b => {
-  b.onclick = () => run(SUGGESTIONS[b.dataset.i][1]);
-});
+  async mount() {
+    await loadPending();
+    if (state.route !== "approvals") return;
+    renderNav();
 
-el("send").onclick = send;
+    const box = $("apvBox");
+    if (!state.pending.length) {
+      box.innerHTML = '<div class="card">' +
+        emptyState("✓", "لا طلبات معلّقة", "راجعت كل ما وصلك.") + "</div>";
+      return;
+    }
 
-el("input").addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-});
+    box.innerHTML = '<div class="stack">' +
+      state.pending.map(q =>
+        '<div class="card"><div class="row start gap-lg">' +
+          '<div class="grow stack tight">' +
+            '<div class="row"><span class="h2">' + esc(q.employee_name) + "</span>" +
+              '<span class="badge pending">طلب #' + q.id + "</span></div>" +
+            '<div class="sm">' + fmtDate(q.start_date) + " ← " + fmtDate(q.end_date) +
+              " · <b>" + q.days + "</b> أيام</div>" +
+            (q.reason ? '<div class="xs">السبب: ' + esc(q.reason) + "</div>" : "") +
+            (q.balance_now == null ? "" :
+              '<div class="card flat tight-pad" style="margin-top:var(--s2)">' +
+                '<div class="row">' +
+                  '<div class="metric sm-metric"><span class="v">' + q.balance_now + "</span>" +
+                    '<span class="k">الرصيد الآن</span></div>' +
+                  '<span class="xs">←</span>' +
+                  '<div class="metric sm-metric ' + (q.balance_after_approval < 0 ? "warn" : "ok") + '">' +
+                    '<span class="v">' + q.balance_after_approval + "</span>" +
+                    '<span class="k">بعد الاعتماد</span></div>' +
+                "</div></div>") +
+          "</div>" +
+          '<div class="stack tight decide">' +
+            '<button class="btn ok" data-ok="' + q.id + '">اعتماد</button>' +
+            '<button class="btn danger" data-no="' + q.id + '">رفض</button>' +
+          "</div>" +
+        "</div></div>").join("") +
+      "</div>";
 
-el("input").addEventListener("input", e => {
-  e.target.style.height = "auto";
-  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
-});
-
-function setMode(m) {
-  state.mode = m;
-  el("mAgent").classList.toggle("on", m === "agent");
-  el("mDocs").classList.toggle("on", m === "docs");
-  el("modeHint").textContent = m === "agent"
-    ? "الوكيل — يختار بين المستندات وقاعدة البيانات"
-    : "المستندات — بحث دلالي فقط";
-}
-el("mAgent").onclick = () => setMode("agent");
-el("mDocs").onclick = () => setMode("docs");
-
-el("drop").onclick = () => el("file").click();
-el("file").onchange = e => { upload(e.target.files); e.target.value = ""; };
-
-["dragenter", "dragover"].forEach(ev =>
-  el("drop").addEventListener(ev, e => { e.preventDefault(); el("drop").classList.add("over"); }));
-["dragleave", "drop"].forEach(ev =>
-  el("drop").addEventListener(ev, e => { e.preventDefault(); el("drop").classList.remove("over"); }));
-el("drop").addEventListener("drop", e => upload(e.dataTransfer.files));
-
-el("docSearch").addEventListener("input", e => { state.docFilter = e.target.value; renderDocs(); });
-
-el("whoami").addEventListener("change", e => {
-  state.userName = e.target.value;
-  store.set("userName", state.userName);
-  if (state.userName) toast("أنت الآن: " + state.userName);
-});
-
-el("newChat").onclick = () => {
-  const cur = current();
-
-  // إن كانت الجلسة الحالية فارغة أصلاً فلا داعي لإنشاء أخرى فوقها
-  if (!cur || cur.messages.length) newSession();
-
-  el("input").value = "";
-  el("input").style.height = "auto";
-  closeModal();
-  renderThread();
-  renderHistory();
-  el("input").focus();
-};
-el("export").onclick = exportMd;
-
-/* ---------- لوحة الإحصاءات ---------- */
-
-const TOOL_LABELS = {
-  search_documents: "بحث المستندات",
-  get_leave_balance: "رصيد الإجازة",
-  get_employee: "بيانات موظف",
-  list_department_employees: "موظفو قسم",
-  department_summary: "ملخّص الأقسام",
-  calculate: "حساب",
+    box.querySelectorAll("[data-ok]").forEach(b => { b.onclick = () => decide(+b.dataset.ok, "approve"); });
+    box.querySelectorAll("[data-no]").forEach(b => { b.onclick = () => decide(+b.dataset.no, "reject"); });
+  },
 };
 
-function barsHTML(counts, labels) {
-  const entries = Object.entries(counts || {});
-  if (!entries.length) return '<div class="empty">لا بيانات بعد.</div>';
-  const max = Math.max(...entries.map(e => e[1]));
-  return '<div class="bars">' + entries.map(([k, n]) =>
-    '<div class="bar">' +
-      '<span class="nm">' + esc(labels ? (labels[k] || k) : k) + '</span>' +
-      '<span class="track"><span class="fill" style="width:' + (n / max * 100) + '%"></span></span>' +
-      '<span class="ct">' + n + '</span>' +
-    '</div>').join("") + '</div>';
+function decide(id, decision) {
+  const q = state.pending.find(x => x.id === id) || {};
+  const approve = decision === "approve";
+
+  openDialog({
+    title: approve ? "اعتماد الطلب" : "رفض الطلب",
+    body:
+      '<div class="body">' + esc(q.employee_name || "") + " · " + (q.days || "") + " أيام<br>" +
+        '<span class="sm">' + fmtDate(q.start_date) + " ← " + fmtDate(q.end_date) + "</span></div>" +
+      (approve && q.balance_after_approval != null
+        ? '<div class="card flat tight-pad" style="margin-top:var(--s4)">' +
+          '<div class="sm">سيصبح رصيده <b>' + q.balance_after_approval + "</b> يوماً بعد الخصم.</div></div>"
+        : "") +
+      '<div class="field" style="margin-top:var(--s4)">' +
+        '<label class="label" for="dcNote">' + (approve ? "ملاحظة (اختياري)" : "سبب الرفض") + "</label>" +
+        '<textarea class="textarea" id="dcNote"></textarea></div>',
+    confirmLabel: approve ? "اعتماد" : "رفض",
+    danger: !approve,
+    onConfirm: async () => {
+      const note = $("dcNote").value.trim();
+      if (!approve && !note) { toast("اكتب سبب الرفض", "err"); return false; }
+
+      try {
+        const d = await apiJson("/leave/" + id + "/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision: decision, note: note }),
+        });
+        toast(approve
+          ? "اعتُمد · رصيد " + d.employee_name + " الآن " + d.remaining_balance
+          : "رُفض الطلب");
+        invalidate("pending", "requests", "leave", "decisions");
+        await loadPending(true);
+        renderNav();
+        if (state.route === "approvals") PAGES.approvals.mount();
+      } catch (e) { toast(e.message, "err"); }
+    },
+    focus: "dcNote",
+  });
 }
 
-function recentHTML(rows) {
-  if (!rows || !rows.length) return '<div class="empty">لا أسئلة بعد.</div>';
-  return '<div class="rows">' + rows.map(r =>
-    '<div class="row-i">' +
-      '<span class="o ' + esc(r.outcome) + '">' + esc(r.outcome) + '</span>' +
-      '<span class="q">' + esc(r.question) + '</span>' +
-      '<span class="d">' + r.duration_ms + ' ms</span>' +
-    '</div>').join("") + '</div>';
+/* ===================== التحليلات ===================== */
+
+PAGES.analytics = {
+  render() { return '<div class="page"><div class="page-in" id="anBox">' + skeletonCard(4) + "</div></div>"; },
+
+  async mount() {
+    let s;
+    try { s = await apiJson("/stats"); }
+    catch (e) { $("anBox").innerHTML = errorState(e.message); return; }
+    if (state.route !== "analytics") return;
+
+    const answered = s.questions - s.refused - s.blocked - s.errors;
+    const rate = s.questions ? Math.round((answered / s.questions) * 100) : 0;
+    const perQ = s.questions ? Math.round(s.total_tokens / s.questions) : 0;
+
+    const toolLabels = {};
+    Object.keys(TOOL_TEXT).forEach(k => { toolLabels[k] = toolDone(k); });
+
+    $("anBox").innerHTML =
+      '<div class="stack" style="gap:var(--s6)">' +
+        '<div class="grid g4">' +
+          metricCard(s.questions, "سؤال") +
+          metricCard(rate + "%", "نسبة الإجابة", "", rate >= 70 ? "ok" : "warn") +
+          metricCard((s.avg_ms / 1000).toFixed(1) + "s", "متوسط الزمن",
+                     "أطول: " + (s.max_ms / 1000).toFixed(1) + "s") +
+          metricCard(s.total_tokens.toLocaleString("en"), "وحدة معالجة", "≈ " + perQ + " للسؤال") +
+        "</div>" +
+        '<div class="grid g3">' +
+          metricCard(s.refused, "بلا إجابة", "نقص في المستندات غالباً") +
+          metricCard(s.blocked, "محجوب", "رفضته الحماية", s.blocked ? "warn" : "") +
+          metricCard(s.uploads, "مستند مرفوع") +
+        "</div>" +
+        '<div class="grid g2 start">' +
+          '<div class="card"><div class="h3 mb">المصادر المستخدمة</div>' +
+            barList(s.by_tool, toolLabels) + "</div>" +
+          '<div class="card"><div class="h3 mb">حسب الوضع</div>' +
+            barList(s.by_mode, { agent: "الوضع الذكي", docs: "المستندات" }) + "</div>" +
+        "</div>" +
+        '<div class="card pad-0">' +
+          '<div class="card-head"><span class="h3 grow">آخر الأسئلة</span></div>' +
+          (s.recent && s.recent.length
+            ? '<div class="table-wrap"><table class="table"><thead><tr>' +
+              "<th>الحالة</th><th>السؤال</th><th class=\"end\">الزمن</th></tr></thead><tbody>" +
+              s.recent.map(r =>
+                "<tr><td>" + outcomeBadge(r.outcome) + "</td>" +
+                '<td class="trunc" style="max-width:400px">' + esc(r.question) + "</td>" +
+                '<td class="end sm nowrap">' + r.duration_ms + " ms</td></tr>").join("") +
+              "</tbody></table></div>"
+            : emptyState("◫", "لا أسئلة بعد", "")) +
+        "</div>" +
+      "</div>";
+  },
+};
+
+function outcomeBadge(o) {
+  const map = { ok: ["approved", "أُجيب"], refused: ["cancelled", "بلا إجابة"],
+                blocked: ["rejected", "محجوب"], error: ["rejected", "خطأ"] };
+  const pair = map[o] || ["", o];
+  return '<span class="badge ' + pair[0] + '">' + esc(pair[1]) + "</span>";
 }
 
-function closeModal() {
-  const m = document.querySelector(".modal");
-  if (m) m.remove();
+/* ===================== الإعدادات ===================== */
+
+PAGES.settings = {
+  render() {
+    const u = state.user || {};
+    return '<div class="page"><div class="page-in stack">' +
+
+      '<div class="card pad-0">' +
+        '<div class="card-head"><span class="h3 grow">الحساب</span></div>' +
+        '<div class="table-wrap"><table class="table"><tbody>' +
+          '<tr><td class="sm w-label">الاسم</td><td>' + esc(u.name || "") + "</td></tr>" +
+          '<tr><td class="sm">الرقم الوظيفي</td><td class="ltr">' + esc(u.id || "—") + "</td></tr>" +
+          '<tr><td class="sm">الصلاحية</td><td>' + roleBadge() + "</td></tr>" +
+        "</tbody></table></div>" +
+      "</div>" +
+
+      '<div class="card">' +
+        '<div class="h3">المظهر</div>' +
+        '<div class="sm mb">اختر مظهر الواجهة.</div>' +
+        '<div class="seg w-seg">' +
+          '<button id="thDark">داكن</button><button id="thLight">فاتح</button></div>' +
+      "</div>" +
+
+      (isManager() ? '<div id="usersBox">' + skeletonCard(2) + "</div>" : "") +
+
+      '<div class="card">' +
+        '<div class="h3">الجلسة</div>' +
+        '<div class="sm mb">تنتهي الجلسة تلقائياً بعد فترة.</div>' +
+        '<button class="btn ghost" id="setLogout">تسجيل الخروج</button>' +
+      "</div>" +
+
+    "</div></div>";
+  },
+
+  mount() {
+    const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    $("thDark").classList.toggle("on", cur === "dark");
+    $("thLight").classList.toggle("on", cur === "light");
+    $("thDark").onclick = () => { setTheme("dark"); PAGES.settings.mount(); };
+    $("thLight").onclick = () => { setTheme("light"); PAGES.settings.mount(); };
+    $("setLogout").onclick = () => signOut();
+
+    if (isManager()) {
+      $("pgActions").innerHTML = '<button class="btn primary sm" id="addUser">حساب جديد</button>';
+      $("addUser").onclick = showAddUser;
+      refreshUsers();
+    }
+  },
+};
+
+const roleBadge = () => isManager()
+  ? '<span class="badge approved">مدير</span>'
+  : '<span class="badge info">موظف</span>';
+
+async function refreshUsers() {
+  const box = $("usersBox");
+  if (!box) return;
+
+  let list;
+  try { list = await apiJson("/auth/users"); }
+  catch (e) { box.innerHTML = errorState(e.message); return; }
+
+  box.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">المستخدمون</span>' +
+        '<span class="badge plain">' + list.length + "</span></div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>الاسم</th><th>اسم الدخول</th><th>الرقم الوظيفي</th><th>الصلاحية</th>" +
+        '<th class="end"></th></tr></thead><tbody>' +
+        list.map(u =>
+          "<tr>" +
+            "<td>" + esc(u.employee_name) + "</td>" +
+            '<td class="ltr sm">' + esc(u.username) + "</td>" +
+            '<td class="ltr sm">' + esc(u.employee_id) + "</td>" +
+            "<td>" + (u.role === "manager"
+              ? '<span class="badge approved">مدير</span>'
+              : '<span class="badge info">موظف</span>') + "</td>" +
+            '<td class="end">' + (u.employee_name === (state.user && state.user.name) ? ""
+              : '<button class="btn sm ghost" data-du="' + esc(u.username) + '">حذف</button>') + "</td>" +
+          "</tr>").join("") +
+      "</tbody></table></div>" +
+    "</div>";
+
+  box.querySelectorAll("[data-du]").forEach(b => {
+    b.onclick = () => confirmDialog(
+      "حذف الحساب",
+      'سيُحذف حساب <b class="ltr">' + esc(b.dataset.du) + "</b> ولن يتمكّن من الدخول.",
+      "حذف",
+      async () => {
+        try {
+          await apiJson("/auth/users/" + encodeURIComponent(b.dataset.du), { method: "DELETE" });
+          toast("حُذف الحساب");
+          refreshUsers();
+        } catch (e) { toast(e.message, "err"); }
+      }, true);
+  });
 }
 
-async function showStats() {
-  closeModal();
+function showAddUser() {
+  let role = "employee";
 
-  const wrap = document.createElement("div");
-  wrap.className = "modal";
-  wrap.innerHTML =
-    '<div class="sheet">' +
-      '<div class="head"><h2>الإحصاءات</h2><button class="x">✕</button></div>' +
-      '<div class="empty">جارٍ التحميل…</div>' +
-    '</div>';
-  document.body.appendChild(wrap);
+  openDialog({
+    title: "حساب جديد",
+    body:
+      '<div class="field"><label class="label" for="nuName">الاسم الكامل</label>' +
+        '<input class="input" id="nuName" placeholder="سعد الغامدي"></div>' +
+      '<div class="field"><label class="label" for="nuUser">اسم الدخول</label>' +
+        '<input class="input ltr" id="nuUser" placeholder="saad"></div>' +
+      '<div class="field"><label class="label">الصلاحية</label>' +
+        '<div class="seg"><button id="nuEmp" class="on">موظف</button>' +
+        '<button id="nuMgr">مدير</button></div></div>' +
+      '<div id="nuOut"></div>',
+    confirmLabel: "إنشاء",
+    keepOpen: true,
+    onReady: () => {
+      const set = r => {
+        role = r;
+        $("nuEmp").classList.toggle("on", r === "employee");
+        $("nuMgr").classList.toggle("on", r === "manager");
+      };
+      $("nuEmp").onclick = () => set("employee");
+      $("nuMgr").onclick = () => set("manager");
+    },
+    onConfirm: async () => {
+      const name = $("nuName").value.trim();
+      const username = $("nuUser").value.trim().toLowerCase();
+      const out = $("nuOut");
 
-  wrap.onclick = e => { if (e.target === wrap || e.target.className === "x") closeModal(); };
+      if (name.length < 2 || username.length < 2) {
+        out.innerHTML = noticeCard("أدخل الاسم الكامل واسم الدخول.", "danger");
+        return false;
+      }
 
-  let s;
-  try {
-    const r = await fetch(API + "/stats");
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    s = await r.json();
-  } catch (e) {
-    wrap.querySelector(".sheet").innerHTML =
-      '<div class="head"><h2>الإحصاءات</h2><button class="x">✕</button></div>' +
-      '<div class="empty">تعذّر جلب الإحصاءات: ' + esc(e.message) + '</div>';
-    return;
+      try {
+        const d = await apiJson("/auth/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: username, employee_name: name, role: role }),
+        });
+        out.innerHTML =
+          '<div class="card notice ok">' +
+            '<div class="h3">أُنشئ الحساب: ' + esc(d.employee_name) + "</div>" +
+            '<div class="cred"><span class="ltr">' + esc(d.username) + "</span>" +
+              '<span class="ltr strong-mono">' + esc(d.password) + "</span></div>" +
+            '<div class="xs">' + esc(d.note) + "</div>" +
+          "</div>";
+        $("nuName").value = ""; $("nuUser").value = "";
+        refreshUsers();
+      } catch (e) {
+        out.innerHTML = noticeCard(e.message, "danger");
+      }
+      return false;
+    },
+    focus: "nuName",
+  });
+}
+
+const noticeCard = (msg, kind) =>
+  '<div class="card notice ' + (kind || "") + '"><div class="sm">' + esc(msg) + "</div></div>";
+
+/* ===================== الدخول والخروج ===================== */
+
+function showLogin(message) {
+  $("login").hidden = false;
+  $("shell").hidden = true;
+  document.body.classList.remove("nav-open");
+
+  const err = $("lgErr");
+  if (message) { err.innerHTML = noticeCard(message, "danger"); err.hidden = false; }
+  else { err.hidden = true; err.innerHTML = ""; }
+
+  $("lgUser").focus();
+}
+
+function showApp() {
+  $("login").hidden = true;
+  $("shell").hidden = false;
+
+  const u = state.user;
+  $("whoName").textContent = u.name;
+  $("whoRole").textContent = isManager() ? "مدير" : "موظف";
+  $("avatar").textContent = (u.name || "?").trim().charAt(0);
+
+  const start = location.hash.replace("#", "") || "home";
+  go(ROUTES[start] ? start : "home");
+
+  /* عدّاد الموافقات مشتقّ من بيانات حقيقية */
+  loadPending().then(() => { renderNav(); renderBell(); }).catch(() => {});
+
+  refreshConnection();
+  if (!state.connTimer) {
+    state.connTimer = setInterval(() => { if (state.token) refreshConnection(); }, 30000);
   }
-
-  const rate = s.questions
-    ? Math.round((s.questions - s.refused - s.blocked - s.errors) / s.questions * 100)
-    : 0;
-
-  wrap.querySelector(".sheet").innerHTML =
-    '<div class="head"><h2>الإحصاءات</h2><button class="x">✕</button></div>' +
-
-    '<div class="kpis">' +
-      '<div class="kpi"><div class="v">' + s.questions + '</div><div class="k">سؤال</div></div>' +
-      '<div class="kpi"><div class="v">' + rate + '%</div><div class="k">نسبة الإجابة</div></div>' +
-      '<div class="kpi"><div class="v">' + (s.avg_ms / 1000).toFixed(1) + 's</div><div class="k">متوسط الزمن</div></div>' +
-      '<div class="kpi"><div class="v">' + (s.max_ms / 1000).toFixed(1) + 's</div><div class="k">أطول زمن</div></div>' +
-      '<div class="kpi"><div class="v">' + s.total_tokens.toLocaleString("en") + '</div><div class="k">رمز مستهلك</div></div>' +
-      '<div class="kpi"><div class="v">' + s.uploads + '</div><div class="k">مستند مرفوع</div></div>' +
-      '<div class="kpi"><div class="v">' + s.refused + '</div><div class="k">بلا إجابة</div></div>' +
-      '<div class="kpi' + (s.blocked ? " warn" : "") + '"><div class="v">' + s.blocked + '</div><div class="k">محجوب</div></div>' +
-    '</div>' +
-
-    '<span class="label">استخدام الأدوات</span>' + barsHTML(s.by_tool, TOOL_LABELS) +
-    '<span class="label">حسب الوضع</span>' + barsHTML(s.by_mode, { agent: "الوكيل", docs: "المستندات" }) +
-    '<span class="label">آخر الأسئلة</span>' + recentHTML(s.recent);
-
-  wrap.querySelector(".x").onclick = closeModal;
 }
 
-el("statsBtn").onclick = showStats;
+function signOut(message) {
+  state.token = "";
+  state.user = null;
+  state.pending = [];
+  state.pendingCount = 0;
+  resetResources();
+  store.set("token", "");
+  store.set("user", null);
+  closeOverlay();
+  showLogin(message);
+}
 
-document.addEventListener("keydown", e => {
-  if (e.key === "Escape") closeModal();
+async function signIn() {
+  const username = $("lgUser").value.trim();
+  const password = $("lgPass").value;
+  if (!username || !password) { showLogin("أدخل اسم المستخدم وكلمة المرور."); return; }
+
+  const btn = $("lgGo");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> جارٍ الدخول…';
+
+  try {
+    const res = await fetch(API + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: username, password: password }),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || "تعذّر تسجيل الدخول");
+
+    state.token = d.token;
+    state.user = { name: d.name, role: d.role, id: d.employee_id };
+    store.set("token", state.token);
+    store.set("user", state.user);
+
+    $("lgPass").value = "";
+    showApp();
+    toast("أهلاً " + d.name);
+  } catch (e) {
+    showLogin(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "دخول";
+  }
+}
+
+/* ===================== الربط ===================== */
+
+$("lgGo").onclick = signIn;
+["lgUser", "lgPass"].forEach(id => {
+  $(id).addEventListener("keydown", e => { if (e.key === "Enter") signIn(); });
 });
 
-function setTheme(t) {
-  document.documentElement.setAttribute("data-theme", t);
-  el("theme").textContent = t === "light" ? "☀" : "☾";
-  store.set("theme", t);
+$("logout").onclick = () => signOut();
+$("menuBtn").onclick = () => document.body.classList.toggle("nav-open");
+$("alertsBtn").onclick = () => go("alerts");
+
+function renderBell() {
+  const btn = $("alertsBtn");
+  if (!btn) return;
+  const n = typeof unreadCount === "function" ? unreadCount() : 0;
+  btn.innerHTML = "◔" + (n ? '<span class="dot">' + (n > 9 ? "9+" : n) + "</span>" : "");
+  btn.setAttribute("aria-label", n ? n + " تنبيه غير مقروء" : "التنبيهات");
 }
 
-el("theme").onclick = () => {
+$("themeBtn").onclick = () => {
   const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
   setTheme(cur === "light" ? "dark" : "light");
 };
 
-/* ---------- الإقلاع ---------- */
+function setTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  store.set("theme", t);
+  const b = $("themeBtn");
+  if (b) b.title = t === "light" ? "التبديل للداكن" : "التبديل للفاتح";
+}
+
+document.addEventListener("click", e => {
+  if (document.body.classList.contains("nav-open") &&
+      !e.target.closest("nav.side") && !e.target.closest("#menuBtn")) {
+    closeNav();
+  }
+});
+
+async function refreshConnection() {
+  const box = $("conn");
+  if (!box) return;
+  try {
+    const d = await apiJson("/health");
+    box.className = "status ok";
+    box.innerHTML = '<i></i><span>متصل · ' + d.chunks + ' مقطعاً</span>';
+  } catch (e) {
+    box.className = "status bad";
+    box.innerHTML = '<i></i><span>تعذّر الاتصال بالخادم</span>';
+  }
+}
+
+
+/* ===================== الإقلاع ===================== */
 
 setTheme(store.get("theme", "dark"));
-el("whoami").value = state.userName;
-state.currentId = state.sessions.length ? state.sessions[0].id : null;
-renderHistory();
-renderThread();
-refreshStatus();
-refreshDocs();
-setInterval(refreshStatus, 20000);
-</script>
 
+(async function boot() {
+  if (!state.token) { showLogin(); return; }
+  try {
+    const r = await fetch(API + "/auth/me", {
+      headers: { Authorization: "Bearer " + state.token },
+    });
+    if (!r.ok) throw new Error();
+    const me = await r.json();
+    state.user = { name: me.name, role: me.role, id: me.id };
+    store.set("user", state.user);
+    showApp();
+  } catch (e) {
+    signOut();
+  }
+})();
+
+</script>
 </body>
 </html>

@@ -79,17 +79,23 @@ def test_unknown_department_returns_empty_not_error():
 # ---------- الإجماليات ----------
 
 def test_summary_total_is_exact():
-    """الرقم الذي أخطأ فيه RAG: 51200 بدل 72000.
+    """قصة التشخيص الأولى: RAG أعطى 51200 بدل 72000 لأنه رأى 3 أقسام من 5.
 
-    السبب أن الاسترجاع رأى 3 أقسام من 5. الاستعلام يرى الخمسة دائماً.
+    ⚠️ الخطوة 5: العدد صار من الموظفين الفعليين لا عمود headcount
+    المخزّن، فالرقم لم يعد 72000 ثابتاً. جوهر القصة باقٍ ومحروس:
+    الاستعلام يجمع كل الأقسام بدقّة — ويُقارَن بحساب مستقل.
     """
-    assert tools.department_summary()["total_monthly_transport"] == 72000
+    expected_total, _ = _independent_org_total(tools.DB_PATH)
+    assert tools.department_summary()["total_monthly_transport"] == expected_total
+    assert expected_total > 0
 
 
 def test_summary_covers_every_department():
+    """الأقسام الخمسة كلها — لا اقتطاع، حتى لو خلا قسم من الموظفين."""
     summary = tools.department_summary()
+    _, expected_count = _independent_org_total(tools.DB_PATH)
     assert len(summary["departments"]) == 5
-    assert summary["total_headcount"] == 90
+    assert summary["total_headcount"] == expected_count
 
 
 def test_summary_total_equals_sum_of_parts():
@@ -175,3 +181,21 @@ def test_history_ignores_malformed_entries():
         {"role": "user", "content": "سليم"},
     ]
     assert len(agent._clean_history(history)) == 1
+
+
+def _independent_org_total(db_path):
+    """الإجمالي محسوباً مستقلاً عن الأداة: الموظفون النشطون × بدل قسمهم.
+
+    لا رقم ثابت: الأداة تُقارَن بحساب SQL منفصل، فأي خطأ في
+    تجميعها — كاقتطاع أقسام كما فعل RAG — يُكشف.
+    """
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute(
+            """SELECT COALESCE(SUM(d.transport_allowance), 0), COUNT(e.employee_id)
+                 FROM employees e JOIN departments d ON d.department_id = e.department_id
+                WHERE COALESCE(e.employment_status, 'active') = 'active'"""
+        ).fetchone()
+    finally:
+        conn.close()

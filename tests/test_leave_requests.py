@@ -17,6 +17,13 @@ def fresh_db(tmp_path):
     """قاعدة معزولة لكل اختبار — الكتابة تلوّث ما بعدها."""
     db = tmp_path / "test.db"
     build_db.build(db)
+
+    import org
+    org.DB_PATH = db
+    # النموذج الثلاثي يقيس المدير بفريقه — فنُسند لنورة فريقاً
+    for emp in ("EMP-001", "EMP-003", "EMP-004", "EMP-005", "EMP-006"):
+        org.assign_manager(emp, "EMP-002", path=db)
+
     original = tools.DB_PATH
     tools.DB_PATH = db
     yield db
@@ -230,3 +237,156 @@ def test_cancel_without_name_is_allowed():
     """اسم فارغ يعني استدعاءً إدارياً — لا نمنعه."""
     tools.submit_leave_request("خالد", future(10), 2)
     assert tools.cancel_leave_request(1, "")["cancelled"]
+
+
+# ---------- الصلاحيات داخل الأدوات ----------
+
+# الهوية تحمل المعرّف كما يفعل الرمز الحقيقي
+EMPLOYEE = {"employee_id": "EMP-003", "name": "خالد الدوسري", "role": "employee"}
+MANAGER = {"employee_id": "EMP-002", "name": "نورة العتيبي", "role": "manager"}
+
+
+def test_employee_reads_own_data_only():
+    assert tools.get_employee("خالد", EMPLOYEE)["found"]
+    assert not tools.get_employee("أحمد الشمري", EMPLOYEE)["found"]
+
+
+def test_manager_reads_their_team():
+    """المدير يرى فريقه — لا المؤسسة كلها (نموذج ثلاثي)."""
+    assert tools.get_employee("أحمد", MANAGER)["found"]
+    assert tools.get_employee("سارة", MANAGER)["found"]
+
+
+def test_employee_cannot_read_others_balance():
+    assert not tools.get_leave_balance("سارة", EMPLOYEE)["found"]
+
+
+def test_employee_cannot_request_for_others():
+    r = tools.preview_leave_request("سارة", future(10), 2, EMPLOYEE)
+    assert not r["valid"]
+    assert "موظف آخر" in r["reason"]
+
+
+def test_employee_sees_only_own_requests():
+    """حتى لو طلب اسم غيره صراحةً — الفلترة في الأداة لا الواجهة."""
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    tools.submit_leave_request("سارة", future(12), 2, actor=MANAGER)
+
+    own = tools.list_leave_requests("", EMPLOYEE)
+    assert own["count"] == 1
+
+    sneaky = tools.list_leave_requests("سارة", EMPLOYEE)
+    names = {r["employee_name"] for r in sneaky["requests"]}
+    assert "سارة القحطاني" not in names
+
+
+def test_manager_sees_all_requests():
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    tools.submit_leave_request("سارة", future(12), 2, actor=MANAGER)
+    assert tools.list_leave_requests("", MANAGER)["count"] == 2
+
+
+def test_employee_cannot_cancel_others_request():
+    tools.submit_leave_request("سارة", future(10), 2, actor=MANAGER)
+    r = tools.cancel_leave_request(1, actor=EMPLOYEE)
+    assert not r["cancelled"]
+    assert tools.list_leave_requests("", MANAGER)["requests"][0]["status"] == "pending"
+
+
+def test_manager_can_cancel_any_request():
+    tools.submit_leave_request("سارة", future(10), 2, actor=MANAGER)
+    assert tools.cancel_leave_request(1, actor=MANAGER)["cancelled"]
+
+
+def test_no_actor_means_internal_call():
+    """الاستدعاء الداخلي بلا هوية يعمل بلا قيود — للسكربتات والاختبارات."""
+    assert tools.get_employee("أحمد")["found"]
+
+
+# ---------- مراجعة الطلبات ----------
+
+def _balance(name):
+    return tools.get_leave_balance(name)["remaining"]
+
+
+def test_only_manager_sees_pending():
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    assert "error" in tools.list_pending_requests(EMPLOYEE)
+    assert tools.list_pending_requests(MANAGER)["count"] == 1
+
+
+def test_only_manager_reviews():
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    r = tools.review_leave_request(1, "approve", actor=EMPLOYEE)
+    assert not r["reviewed"]
+    assert tools.list_leave_requests("", MANAGER)["requests"][0]["status"] == "pending"
+
+
+def test_pending_shows_balance_impact():
+    """المدير يقرّر وهو يرى الأثر — لا يحسبه بنفسه."""
+    tools.submit_leave_request("خالد", future(10), 3, actor=EMPLOYEE)
+    q = tools.list_pending_requests(MANAGER)["requests"][0]
+    assert q["balance_now"] == 8
+    assert q["balance_after_approval"] == 5
+
+
+def test_approval_deducts_balance():
+    """الاعتماد هو اللحظة الوحيدة التي يتغيّر فيها الرصيد المخزّن."""
+    tools.submit_leave_request("خالد", future(10), 3, actor=EMPLOYEE)
+    before = _balance("خالد")
+    tools.review_leave_request(1, "approve", actor=MANAGER)
+    assert _balance("خالد") == before - 3
+
+
+def test_rejection_leaves_balance_untouched():
+    tools.submit_leave_request("خالد", future(10), 3, actor=EMPLOYEE)
+    before = _balance("خالد")
+    tools.review_leave_request(1, "reject", actor=MANAGER)
+    assert _balance("خالد") == before
+
+
+def test_rejection_frees_the_reservation():
+    """الرفض يحرّر الحجز — الأيام تعود للمتاح."""
+    tools.submit_leave_request("خالد", future(10), 5, actor=EMPLOYEE)
+    assert tools.preview_leave_request("خالد", future(40), 5)["pending_days"] == 5
+
+    tools.review_leave_request(1, "reject", actor=MANAGER)
+    assert tools.preview_leave_request("خالد", future(40), 5)["pending_days"] == 0
+
+
+def test_reviewed_request_leaves_pending_queue():
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    tools.review_leave_request(1, "approve", actor=MANAGER)
+    assert tools.list_pending_requests(MANAGER)["count"] == 0
+
+
+def test_cannot_review_twice():
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    tools.review_leave_request(1, "approve", actor=MANAGER)
+    r = tools.review_leave_request(1, "reject", actor=MANAGER)
+    assert not r["reviewed"]
+
+
+def test_approved_request_cannot_be_cancelled():
+    """الأيام خُصمت — الإلغاء يحتاج قراراً إدارياً لا عملية تلقائية."""
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    tools.review_leave_request(1, "approve", actor=MANAGER)
+    r = tools.cancel_leave_request(1, actor=EMPLOYEE)
+    assert not r["cancelled"]
+    assert "معتمد" in r["reason"]
+
+
+@pytest.mark.parametrize("decision", ["maybe", "", "APPROVE_ALL", "delete"])
+def test_invalid_decision_rejected(decision):
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    assert not tools.review_leave_request(1, decision, actor=MANAGER)["reviewed"]
+
+
+def test_review_unknown_request():
+    assert not tools.review_leave_request(999, "approve", actor=MANAGER)["reviewed"]
+
+
+def test_note_is_saved_with_decision():
+    tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
+    r = tools.review_leave_request(1, "reject", "الفترة مزدحمة", MANAGER)
+    assert r["note"] == "الفترة مزدحمة"
