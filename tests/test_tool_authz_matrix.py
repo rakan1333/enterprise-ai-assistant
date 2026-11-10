@@ -287,3 +287,85 @@ def _independent_org_total(db_path):
         ).fetchone()
     finally:
         conn.close()
+
+
+# ============ أدوات الحضور (الطبقة 3) ============
+#
+# المصفوفة وُجدت لأن أداتين أفلتتا منها، فكل أداة جديدة تدخلها.
+# قاعدة هذا الملف لا تملك جداول الحضور، فنُرقّيها هنا بدل تعديل
+# التجهيز المشترك الذي تعتمد عليه ثلاثون اختباراً قائماً.
+
+@pytest.fixture
+def attendance_db(db):
+    import attendance
+    import migrations
+    migrations.migrate(db)
+    original = attendance.DB_PATH
+    attendance.DB_PATH = db
+    yield db
+    attendance.DB_PATH = original
+
+
+def test_my_attendance_refuses_without_identity(attendance_db):
+    assert tools.get_my_attendance(actor={"role": "employee"})["authorized"] is False
+
+
+def test_my_attendance_takes_no_employee_argument(attendance_db):
+    """التزوير يرتدّ خطأً لا نتيجةً — المعامل غير موجود أصلاً."""
+    with pytest.raises(TypeError):
+        tools.get_my_attendance(employee_id="EMP-001", actor=EMPLOYEE)
+
+
+def test_team_attendance_is_manager_only(attendance_db):
+    assert tools.get_team_attendance(actor=EMPLOYEE)["authorized"] is False
+    assert tools.get_team_attendance(actor=MANAGER)["authorized"] is True
+    assert tools.get_team_attendance(actor=ADMIN)["authorized"] is True
+
+
+def test_team_attendance_scope_matches_the_leave_scope(attendance_db):
+    """نطاق واحد لا نطاقان: نفس الدالة تحكم الإجازات والحضور.
+
+    لو افترقا لصار مكانان يجب أن يتفقا — وهما يفترقان عند أول تعديل.
+    """
+    assert tools.attendance_scope(MANAGER) == tools._visible_employee_ids(MANAGER)
+    assert tools.attendance_scope(ADMIN) is None
+    assert tools.attendance_scope(EMPLOYEE) == {"EMP-003"}
+
+
+def test_list_sites_is_open_to_every_role(attendance_db):
+    for who in (EMPLOYEE, MANAGER, ADMIN):
+        assert tools.list_sites(actor=who)["authorized"] is True
+
+
+def test_inactive_sites_are_admin_only(attendance_db):
+    import attendance
+    s = attendance.create_site("مغلق", 25.0, 47.0, path=attendance_db)
+    attendance.set_site_active(s["site_id"], False, path=attendance_db)
+
+    assert tools.list_sites(actor=MANAGER)["count"] == 0
+    assert tools.list_sites(actor=ADMIN)["count"] == 1
+
+
+def test_every_registered_tool_is_exercised_by_some_test():
+    """حارس المصفوفة نفسها.
+
+    أداة مسجّلة لا يستدعيها أي اختبار تُسقط هذا الاختبار. هذا ما
+    كان ناقصاً حين أفلتت أداتان وكشفت قائمة قسم كاملة لأي موظف.
+
+    النطاق مجلّد الاختبارات كله لا هذا الملف: تغطية الأدوات موزّعة
+    على ملفات عدّة بحكم نموّها، وحصر الفحص هنا يُبلغ عن تسع أدوات
+    قائمة مغطّاة فعلاً في مكان آخر.
+    """
+    import pathlib
+
+    import agent
+    registered = {t["function"]["name"] for t in agent.TOOL_SPECS}
+
+    corpus = "\n".join(
+        p.read_text(encoding="utf-8")
+        for p in pathlib.Path(__file__).parent.glob("test_*.py"))
+
+    # search_documents تعيش في agent.py لا tools.py
+    missing = {n for n in registered
+               if f"tools.{n}(" not in corpus} - {"search_documents"}
+    assert not missing, f"أدوات بلا اختبار يستدعيها: {sorted(missing)}"

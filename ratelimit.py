@@ -76,7 +76,7 @@ class SlidingWindow:
 # والوكيل أوسع (استخدام مشروع) لكنه يحمي حصة النموذج.
 login_limiter = SlidingWindow(limit=8,  window=300, name="تسجيل الدخول")
 agent_limiter = SlidingWindow(limit=30, window=60,  name="المساعد")
-
+attendance_limiter = SlidingWindow(limit=20, window=300, name="الحضور")
 
 def client_key(request, user=None) -> str:
     """مفتاح التحديد: هوية المستخدم إن وُجدت، وإلا عنوان العميل.

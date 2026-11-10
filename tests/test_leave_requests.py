@@ -244,6 +244,9 @@ def test_cancel_without_name_is_allowed():
 # الهوية تحمل المعرّف كما يفعل الرمز الحقيقي
 EMPLOYEE = {"employee_id": "EMP-003", "name": "خالد الدوسري", "role": "employee"}
 MANAGER = {"employee_id": "EMP-002", "name": "نورة العتيبي", "role": "manager"}
+# سارة تقدّم طلبها بنفسها — الخطوة 6 منعت التقديم باسم الغير،
+# فلم يعد المدير يُنشئ طلباً لها كتجهيز للاختبار.
+SARA = {"employee_id": "EMP-004", "name": "سارة القحطاني", "role": "employee"}
 
 
 def test_employee_reads_own_data_only():
@@ -270,7 +273,7 @@ def test_employee_cannot_request_for_others():
 def test_employee_sees_only_own_requests():
     """حتى لو طلب اسم غيره صراحةً — الفلترة في الأداة لا الواجهة."""
     tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
-    tools.submit_leave_request("سارة", future(12), 2, actor=MANAGER)
+    tools.submit_leave_request("سارة", future(12), 2, actor=SARA)
 
     own = tools.list_leave_requests("", EMPLOYEE)
     assert own["count"] == 1
@@ -282,19 +285,19 @@ def test_employee_sees_only_own_requests():
 
 def test_manager_sees_all_requests():
     tools.submit_leave_request("خالد", future(10), 2, actor=EMPLOYEE)
-    tools.submit_leave_request("سارة", future(12), 2, actor=MANAGER)
+    tools.submit_leave_request("سارة", future(12), 2, actor=SARA)
     assert tools.list_leave_requests("", MANAGER)["count"] == 2
 
 
 def test_employee_cannot_cancel_others_request():
-    tools.submit_leave_request("سارة", future(10), 2, actor=MANAGER)
+    tools.submit_leave_request("سارة", future(10), 2, actor=SARA)
     r = tools.cancel_leave_request(1, actor=EMPLOYEE)
     assert not r["cancelled"]
     assert tools.list_leave_requests("", MANAGER)["requests"][0]["status"] == "pending"
 
 
 def test_manager_can_cancel_any_request():
-    tools.submit_leave_request("سارة", future(10), 2, actor=MANAGER)
+    tools.submit_leave_request("سارة", future(10), 2, actor=SARA)
     assert tools.cancel_leave_request(1, actor=MANAGER)["cancelled"]
 
 

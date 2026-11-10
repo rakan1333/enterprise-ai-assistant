@@ -328,6 +328,8 @@
   .row.wrap { flex-wrap: wrap; }
   .grow { flex: 1; min-width: 0; }
   .stack { display: flex; flex-direction: column; gap: var(--s4); }
+  /* يُعيد الحاشية داخل بطاقة pad-0 — تُستخدم في الهيكل التنظيمي */
+  .pad { padding: var(--s4); }
   .stack.tight { gap: var(--s2); }
   .trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -813,7 +815,75 @@ const state = {
   currentId: null,
 };
 
-const isManager = () => state.user && state.user.role === "manager";
+/* ===================== بوّابات الدور =====================
+   ثلاث دوال تطابق auth.py حرفاً بحرف:
+
+     isAdmin    ↔ auth.is_admin      (admin فقط)
+     isManager  ↔ auth.is_manager    (manager فقط — لا يشمل admin)
+     isElevated ↔ auth.is_elevated   (manager أو admin)
+
+   الإخفاء هنا تحسين للتجربة لا حدّ أمني: كل مسار محميّ يرفض
+   في الخادم بذاته، فتعديل هذا الملف لا يمنح شيئاً.
+
+   كانت هذه الدالة الواحدة `role === "manager"` فحُجب المسؤول عن
+   كل شيء إداري، وعُرض على المدير ما يرفضه الخادم (/stats و
+   /auth/users صارا is_admin في الخطوتين 1 و3.1). */
+
+const isAdmin    = () => !!state.user && state.user.role === "admin";
+const isManager  = () => !!state.user && state.user.role === "manager";
+const isElevated = () => isAdmin() || isManager();
+
+/* القدرات التي قد تحملها وجهة أو إجراء. غياب القدرة = متاح للجميع. */
+const CAPABILITY = { elevated: isElevated, admin: isAdmin };
+const allowed = cap => !cap || (CAPABILITY[cap] ? CAPABILITY[cap]() : false);
+
+/* تسمية الدور — ثلاثية. كانت ثنائية فظهر المسؤول "موظف". */
+const ROLE_LABEL = { admin: "مسؤول النظام", manager: "مدير", employee: "موظف" };
+const ROLE_TONE  = { admin: "accent", manager: "approved", employee: "info" };
+const roleLabel  = r => ROLE_LABEL[r] || "موظف";
+const roleTone   = r => ROLE_TONE[r] || "info";
+const roleChip   = r =>
+  '<span class="badge ' + roleTone(r) + '">' + esc(roleLabel(r)) + "</span>";
+
+/* ===================== هوية المستخدم =====================
+   /auth/me يعيد أحد عشر حقلاً منذ الخطوة 5، وكانت الواجهة تقرأ
+   ثلاثة. نقرؤها كلها في شكل واحد، فيستوي مصدرها: /auth/login
+   (أربعة حقول، المعرّف اسمه employee_id) أو /auth/me (المعرّف id).
+
+   الدور من الخادم وحده — لا يُقرأ من التخزين المحلي عند الإقلاع
+   إلا بعد أن يؤكّده /auth/me. */
+
+function adoptUser(src) {
+  const u = {
+    name:              src.name || "",
+    role:              src.role || "",
+    id:                src.id || src.employee_id || "",
+    department:        src.department || "",
+    department_id:     src.department_id || "",
+    job_title:         src.job_title || "",
+    manager_id:        src.manager_id || "",
+    manager_name:      src.manager_name || "",
+    employment_status: src.employment_status || "",
+    email:             src.email || "",
+    hire_date:         src.hire_date || "",
+  };
+  state.user = u;
+  store.set("user", u);
+  return u;
+}
+
+async function refreshMe() {
+  try {
+    const r = await fetch(API + "/auth/me", {
+      headers: { Authorization: "Bearer " + state.token },
+    });
+    if (!r.ok) return false;
+    adoptUser(await r.json());
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 /* ===================== أسماء الأدوات المقروءة =====================
    المستخدم لا يرى get_leave_balance — يرى "جارٍ التحقق من رصيد إجازتك".
@@ -832,6 +902,13 @@ const TOOL_TEXT = {
   list_leave_requests:       ["استعراض طلباتك",             "عرض الطلبات"],
   list_pending_requests:     ["جلب الطلبات المعلّقة",        "الطلبات المعلّقة"],
   review_leave_request:      ["تنفيذ القرار",               "مراجعة الطلب"],
+
+  /* أدوات الخطوة 6 — بلا تسمية كان toolDone يعرض الاسم الإنجليزي الخام
+     وسط المحادثة، وكانت الأربعة تغيب عن مخطط "المصادر المستخدمة". */
+  get_my_profile:            ["جلب بياناتك الوظيفية",       "بياناتك الوظيفية"],
+  get_my_manager:            ["تحديد مديرك المباشر",        "مديرك المباشر"],
+  get_my_team:               ["استعراض فريقك",              "فريقك"],
+  get_organization:          ["قراءة الهيكل التنظيمي",      "الهيكل التنظيمي"],
 };
 const toolRunning = t => (TOOL_TEXT[t] || ["جارٍ العمل", t])[0] + "…";
 const toolDone    = t => (TOOL_TEXT[t] || [t, t])[1];
@@ -1012,6 +1089,11 @@ const resources = {
   pending:  { state: "idle", data: [],   error: "", ts: 0 },
   docs:     { state: "idle", data: [],   error: "", ts: 0 },
   decisions:{ state: "idle", data: [],   error: "", ts: 0 },
+  team:     { state: "idle", data: [],   error: "", ts: 0 },
+  attend:   { state: "idle", data: null, error: "", ts: 0 },
+  teamAtt:  { state: "idle", data: [],   error: "", ts: 0 },
+  corrects: { state: "idle", data: [],   error: "", ts: 0 },
+  sites:    { state: "idle", data: [],   error: "", ts: 0 },
 };
 
 const inflight = {};
@@ -1085,7 +1167,8 @@ const loadRequests = force =>
   loadResource("requests", "/me/requests", { force: force, asList: true });
 
 async function loadDecisions(force) {
-  if (!isManager()) {
+  /* /leave/decisions بوّابته is_elevated — فالمسؤول مشمول */
+  if (!isElevated()) {
     resources.decisions = { state: "ready", data: [], error: "", ts: Date.now() };
     return resources.decisions;
   }
@@ -1095,7 +1178,8 @@ async function loadDecisions(force) {
 
 
 async function loadPending(force) {
-  if (!isManager()) {
+  /* /leave/pending بوّابته is_elevated — فالمسؤول مشمول */
+  if (!isElevated()) {
     resources.pending = { state: "ready", data: [], error: "", ts: Date.now() };
     state.pending = [];
     state.pendingCount = 0;
@@ -1110,9 +1194,31 @@ async function loadPending(force) {
   return slot;
 }
 
+
+/* /me/team — التقارير المباشرة وحدها، لا الشجرة.
+   الخادم يعيد كائناً فيه members؛ نُسطّحه إلى قائمة ليتعامل معه
+   بقية الواجهة كأي مورد قائمة، ويبقى transform مسؤولاً عن الشكل. */
+async function loadTeam(force) {
+  if (!isElevated()) {
+    resources.team = { state: "ready", data: [], error: "", ts: Date.now() };
+    return resources.team;
+  }
+  return loadResource("team", "/me/team", {
+    force: force,
+    asList: true,
+    transform: r => (r && Array.isArray(r.members) ? r.members : []),
+  });
+}
+
 /* ===================== الوجهات والتنقّل ===================== */
 
-/* mgr: يُعرض لمن يملك صلاحية الإدارة فقط.
+/* cap: القدرة التي تتطلّبها الوجهة، مطابقة لبوّابة الخادم:
+
+     team       → /leave/pending      is_elevated
+     approvals  → /leave/{id}/review  is_elevated
+     analytics  → /stats              is_admin
+     org        → /org/structure      is_admin
+
    الإخفاء تحسين للتجربة — الفحص الفعلي في الخادم دائماً. */
 const ROUTES = {
   home:      { icon: "⌂", label: "الرئيسية",      title: "الرئيسية",         sub: "نظرة على يومك" },
@@ -1120,21 +1226,26 @@ const ROUTES = {
   workspace: { icon: "◎", label: "مساحتي",         title: "مساحتي",            sub: "رصيدك وبياناتك" },
   knowledge: { icon: "▤", label: "المعرفة",        title: "قاعدة المعرفة",     sub: "مستندات الشركة" },
   requests:  { icon: "✎", label: "طلباتي",         title: "طلباتي",            sub: "تقديم ومتابعة" },
-  team:      { icon: "◇", label: "مساحة الفريق",   title: "مساحة الفريق",      sub: "نظرة على طلبات فريقك", mgr: true },
-  approvals: { icon: "✓", label: "الموافقات",      title: "الموافقات",         sub: "طلبات بانتظار قرارك", mgr: true },
-  analytics: { icon: "◫", label: "التحليلات",      title: "التحليلات",         sub: "الاستخدام والتكلفة",  mgr: true },
+  attendance:{ icon: "◷", label: "الحضور",         title: "الحضور",            sub: "تسجيلك وساعاتك" },
+  team:      { icon: "◇", label: "مساحة الفريق",   title: "مساحة الفريق",      sub: "فريقك وطلباته",       cap: "elevated" },
+  approvals: { icon: "✓", label: "الموافقات",      title: "الموافقات",         sub: "طلبات بانتظار قرارك", cap: "elevated" },
+  org:       { icon: "⬡", label: "الهيكل التنظيمي", title: "الهيكل التنظيمي",   sub: "الأقسام وخطوط التبعية", cap: "admin" },
+  analytics: { icon: "◫", label: "التحليلات",      title: "التحليلات",         sub: "الاستخدام والتكلفة",  cap: "admin" },
   alerts:    { icon: "◔", label: "التنبيهات",      title: "التنبيهات",         sub: "ما يخصّك" },
   settings:  { icon: "⚒", label: "الإعدادات",      title: "الإعدادات",         sub: "حسابك والنظام" },
 };
 
 const NAV_GROUPS = [
   { label: "",         items: ["home", "assistant"] },
-  { label: "مساحتي",   items: ["workspace", "requests", "knowledge", "alerts"] },
-  { label: "الإدارة",  items: ["team", "approvals", "analytics"], mgr: true },
+  { label: "مساحتي",   items: ["workspace", "attendance", "requests", "knowledge", "alerts"] },
+  { label: "الإدارة",  items: ["team", "approvals", "org", "analytics"] },
   { label: "",         items: ["settings"] },
 ];
 
-const visible = key => !ROUTES[key].mgr || isManager();
+/* القدرة على الوجهة وحدها تحكم الظهور. المجموعة لا تحمل راية:
+   تختفي تلقائياً إن لم يبق فيها عنصر مرئي، فتبقى "الإدارة" ظاهرة
+   للمدير بعنصريه ولا تعرض عليه التحليلات التي يرفضها الخادم. */
+const visible = key => !!ROUTES[key] && allowed(ROUTES[key].cap);
 
 function navBadge(key) {
   /* عدّادات من بيانات حقيقية فقط — لا أرقام مخترَعة */
@@ -1148,7 +1259,6 @@ function renderNav() {
   if (!host) return;
 
   host.innerHTML = NAV_GROUPS
-    .filter(g => !g.mgr || isManager())
     .map(g => {
       const items = g.items.filter(visible);
       if (!items.length) return "";
@@ -1250,7 +1360,8 @@ const QUICK_ACTIONS = [
   { ic: "◎", t: "رصيد إجازتي",   s: "المتاح والمستخدم",        go: "workspace" },
   { ic: "✎", t: "طلباتي",        s: "المتابعة والإلغاء",       go: "requests" },
   { ic: "▤", t: "المعرفة",       s: "مستندات الشركة",          go: "knowledge" },
-  { ic: "✓", t: "مراجعة الطلبات", s: "بانتظار قرارك",           go: "approvals", mgr: true },
+  { ic: "✓", t: "مراجعة الطلبات", s: "بانتظار قرارك",           go: "approvals", cap: "elevated" },
+  { ic: "⬡", t: "الهيكل التنظيمي", s: "الأقسام والتبعية",        go: "org",       cap: "admin" },
 ];
 
 function greeting() {
@@ -1263,7 +1374,7 @@ function greeting() {
 PAGES.home = {
   render() {
     const name = state.user ? String(state.user.name).split(" ")[0] : "";
-    const actions = QUICK_ACTIONS.filter(a => !a.mgr || isManager());
+    const actions = QUICK_ACTIONS.filter(a => allowed(a.cap));
 
     return '<div class="page"><div class="page-in stack" style="gap:var(--s6)">' +
 
@@ -1382,7 +1493,7 @@ function renderMetrics() {
     metricCard(val(R, d => d.length), "إجمالي طلباتي", "في سجلّك"),
   ];
 
-  if (isManager()) {
+  if (isElevated()) {
     cards.push(metricCard(
       P.state === "ready" ? P.data.length : "—",
       "بانتظار قرارك",
@@ -1524,7 +1635,7 @@ function buildAttention() {
   const out = [];
   const R = resources.requests, P = resources.pending, L = resources.leave;
 
-  if (isManager() && P.state === "ready" && P.data.length) {
+  if (isElevated() && P.state === "ready" && P.data.length) {
     out.push({
       tone: "info", icon: "✓",
       title: P.data.length + " طلب بانتظار مراجعتك",
@@ -1643,14 +1754,28 @@ function renderProfile() {
   host.innerHTML =
     '<div class="card pad-0">' +
       '<div class="card-head"><span class="h3 grow">بيانات الموظف</span>' +
-        (isManager() ? '<span class="badge approved">مدير</span>'
-                     : '<span class="badge info">موظف</span>') + "</div>" +
+        roleChip(u.role) + "</div>" +
       '<div class="table-wrap"><table class="table"><tbody>' +
-        '<tr><td class="sm w-label">الاسم</td><td>' + esc(u.name || "—") + "</td></tr>" +
-        '<tr><td class="sm">الرقم الوظيفي</td><td class="ltr">' + esc(u.id || "—") + "</td></tr>" +
-        (dept ? '<tr><td class="sm">القسم</td><td>' + esc(dept) + "</td></tr>" : "") +
+        row("الاسم", esc(u.name), "w-label") +
+        row("الرقم الوظيفي", esc(u.id), "ltr") +
+        row("المسمّى الوظيفي", esc(u.job_title)) +
+        row("القسم", esc(u.department || dept)) +
+        row("المدير المباشر", esc(u.manager_name)) +
+        row("البريد", esc(u.email), "ltr") +
+        row("تاريخ التعيين", u.hire_date ? fmtDate(u.hire_date) : "") +
+        row("حالة التعيين", u.employment_status === "active" ? "على رأس العمل"
+                          : esc(u.employment_status)) +
       "</tbody></table></div>" +
     "</div>";
+}
+
+/* صف جدول يُسقَط إن كان فارغاً — الحقول الإضافية في /auth/me قد
+   تعود فارغة إن لم يُربط الحساب بسجل موظف، فلا نعرض "—" ثمانية مرات. */
+function row(label, value, cls) {
+  if (value === null || value === undefined || value === "") return "";
+  return '<tr><td class="sm' + (cls === "w-label" ? " w-label" : "") + '">' +
+    esc(label) + '</td><td' + (cls === "ltr" ? ' class="ltr"' : "") + ">" +
+    value + "</td></tr>";
 }
 
 function renderBalance() {
@@ -1752,6 +1877,314 @@ const typeText = t => LEAVE_TYPE_TEXT[t] || t || "إجازة";
 
 /* المرشّح في الحالة — لا يُفقد عند إعادة الرسم، ولا يستدعي الخادم */
 let requestFilter = "all";
+
+/* ===================== الحضور ===================== */
+
+/* الموقع الجغرافي محجوب على http في كل المتصفّحات إلا من localhost.
+   نكشفه صراحةً ونقول السبب: زرّ لا يستجيب أسوأ من زرّ غائب، ولو
+   تركناه لظنّ المستخدم أن النظام معطّل. */
+const geoReady = () =>
+  typeof navigator !== "undefined" && !!navigator.geolocation &&
+  (typeof isSecureContext === "undefined" || isSecureContext);
+
+const GEO_BLOCKED =
+  "تسجيل الحضور يحتاج اتصالاً آمناً (HTTPS). المتصفّح لا يعطي الموقع " +
+  "على اتصال غير آمن إلا من localhost.";
+
+/* رسائل أخطاء الموقع بلغة المستخدم لا برموز المواصفة */
+const GEO_ERRORS = {
+  1: "رُفض الإذن بالموقع. فعّله من إعدادات الموقع في المتصفّح.",
+  2: "تعذّر تحديد موقعك. تأكّد من تفعيل خدمة الموقع في الجهاز.",
+  3: "انتهت مهلة تحديد الموقع. حاول مرّة أخرى.",
+};
+
+function readPosition() {
+  return new Promise((resolve, reject) => {
+    if (!geoReady()) { reject(new Error(GEO_BLOCKED)); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({
+        /* الثلاثة فقط. لا site_id ولا inside ولا distance_m:
+           الحكم يحسبه الخادم، والمخطّط يُسقط أي ادّعاء نرسله. */
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracy_m: pos.coords.accuracy,
+      }),
+      err => reject(new Error(GEO_ERRORS[err && err.code] ||
+                              "تعذّر قراءة الموقع.")),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  });
+}
+
+/* نافذة آخر 30 يوماً. encodeURIComponent لازم: علامة + في الإزاحة
+   تُفكّ مسافةً في مسار الاستعلام فيردّ الخادم 400. */
+function attendanceWindow(days) {
+  const now = new Date();
+  const from = new Date(now.getTime() - (days || 30) * 86400000);
+  return "?start=" + encodeURIComponent(from.toISOString().replace(/\.\d+Z$/, "+00:00")) +
+         "&end=" + encodeURIComponent(new Date(now.getTime() + 86400000)
+                     .toISOString().replace(/\.\d+Z$/, "+00:00"));
+}
+
+function loadAttendance(force) {
+  return loadResource("attend", "/me/attendance" + attendanceWindow(30),
+                      { force: force });
+}
+
+const VERDICT_TEXT = {
+  inside: "داخل النطاق",
+  outside: "خارج النطاق",
+  rejected: "قراءة غير دقيقة",
+  manually_added: "أُضيف إدارياً",
+  correction_closed: "أُغلق بتصحيح",
+  conflict_closed: "أُغلق لتعارض",
+};
+
+const verdictTone = v =>
+  v === "inside" ? "ok" : (v === "outside" || v === "rejected") ? "warn" : "muted";
+
+const verdictChip = v =>
+  '<span class="badge ' + verdictTone(v) + '">' +
+  esc(VERDICT_TEXT[v] || v || "—") + "</span>";
+
+/* الساعات بصيغة يقرأها إنسان. null ليست صفراً: جلسة بلا مدّة
+   محسوبة تختلف عن جلسة مدّتها صفر، والفرق يهمّ في كشف الساعات. */
+const fmtMinutes = m => {
+  if (m == null) return "—";
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? (r ? h + " س " + r + " د" : h + " س") : r + " د";
+};
+
+const fmtClock = s => {
+  if (!s) return "—";
+  try {
+    const d = new Date(s);
+    /* التاريخ التالف لا يرمي — يعيد "Invalid Date" نصّاً.
+       فالفحص الصريح لازم، وإلا ظهرت العبارة الإنجليزية للمستخدم. */
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+  } catch (e) { return "—"; }
+};
+
+PAGES.attendance = {
+  render() {
+    return '<div class="page"><div class="page-in stack" style="gap:var(--s6)">' +
+        '<section id="atStatus">' + skeletonCard(2) + "</section>" +
+        '<section id="atTotals">' + metricSkeleton() + "</section>" +
+        '<section id="atLog">' + skeletonCard(3) + "</section>" +
+      "</div></div>";
+  },
+
+  async mount() {
+    await loadAttendance().catch(() => resources.attend);
+    if (state.route !== "attendance") return;
+
+    renderAttStatus();
+    renderAttTotals();
+    renderAttLog();
+  },
+};
+
+function renderAttStatus() {
+  const host = $("atStatus");
+  if (!host) return;
+
+  const A = resources.attend;
+  if (A.state === "loading" || A.state === "idle") {
+    host.innerHTML = skeletonCard(2); return;
+  }
+  if (A.state === "error") { host.innerHTML = errorState(A.error); return; }
+
+  const open = A.data && A.data.open_session;
+  const blocked = !geoReady();
+
+  const action = blocked
+    ? '<div class="note warn">' + esc(GEO_BLOCKED) + "</div>"
+    : '<button class="btn primary" id="atAction">' +
+        (open ? "تسجيل انصراف" : "تسجيل حضور") + "</button>";
+
+  host.innerHTML =
+    '<div class="card">' +
+      '<div class="card-head"><span class="h3 grow">حالتك الآن</span>' +
+        (open ? '<span class="badge ok">حضور مفتوح</span>'
+              : '<span class="badge muted">لا حضور مفتوح</span>') + "</div>" +
+      '<div class="stack tight">' +
+        (open
+          ? '<div class="xs">منذ ' + esc(fmtClock(open.check_in_at)) +
+            (open.site_name ? " — " + esc(open.site_name) : "") + "</div>"
+          : '<div class="xs">سجّل حضورك عند وصولك لموقع العمل.</div>') +
+        action +
+      "</div>" +
+    "</div>";
+
+  const btn = $("atAction");
+  if (btn) btn.onclick = () => submitAttendance(open ? "check-out" : "check-in", btn);
+}
+
+async function submitAttendance(kind, btn) {
+  btn.disabled = true;
+  btn.textContent = "جارٍ قراءة الموقع…";
+  try {
+    const reading = await readPosition();
+    const r = await apiJson("/attendance/" + kind, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reading),
+    });
+
+    if (!r.recorded) { toast(r.reason || "لم يُسجَّل", "warn"); }
+    else if (r.accepted === false) {
+      /* سُجّل ولم يُقبل — حالة قائمة بذاتها لا نجاح ولا فشل.
+         الصراحة هنا أهمّ من الطمأنة: الموظف يحتاج أن يعرف
+         أن عليه طلب تصحيح. */
+      toast("سُجّلت المحاولة: " + esc(VERDICT_TEXT[r.verdict] || r.verdict) +
+            ". تقدر تطلب تصحيحاً.", "warn");
+    } else {
+      toast(kind === "check-in" ? "سُجّل حضورك" : "سُجّل انصرافك", "ok");
+    }
+  } catch (e) {
+    toast(e.message, "err");
+  } finally {
+    btn.disabled = false;
+    await loadAttendance(true).catch(() => resources.attend);
+    if (state.route === "attendance") {
+      renderAttStatus(); renderAttTotals(); renderAttLog();
+    }
+  }
+}
+
+function renderAttTotals() {
+  const host = $("atTotals");
+  if (!host) return;
+
+  const A = resources.attend;
+  if (A.state !== "ready" || !A.data) { host.innerHTML = metricSkeleton(); return; }
+
+  /* الدقائق الثلاث منفصلة كما يعيدها الخادم. دمجها في رقم واحد
+     يُفقد الجواب معناه: ما قاسه السياج ليس ما اعتمده إنسان. */
+  const t = A.data.totals || {};
+  host.innerHTML = '<div class="metrics">' +
+    metricCard(fmtMinutes(t.verified_minutes), "ساعات موثّقة", "قاسها السياج", "ok") +
+    metricCard(fmtMinutes(t.administrative_minutes), "ساعات إدارية", "باعتماد مسؤول") +
+    metricCard(String(t.unresolved_sessions || 0), "جلسات معلّقة",
+               (t.unresolved_sessions ? "تحتاج تصحيحاً" : "لا شيء"),
+               t.unresolved_sessions ? "warn" : "") +
+  "</div>";
+}
+
+function renderAttLog() {
+  const host = $("atLog");
+  if (!host) return;
+
+  const A = resources.attend;
+  if (A.state !== "ready" || !A.data) { host.innerHTML = skeletonCard(3); return; }
+
+  const rows = Array.isArray(A.data.records) ? A.data.records : [];
+  if (!rows.length) {
+    host.innerHTML = emptyState("◷", "لا سجلّ بعد",
+      "سجلّ آخر ثلاثين يوماً يظهر هنا.");
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">آخر 30 يوماً</span>' +
+        '<span class="xs">' + rows.length + " جلسة</span></div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>اليوم</th><th>حضور</th><th>انصراف</th>" +
+        "<th>المدّة</th><th>الحالة</th><th></th>" +
+      "</tr></thead><tbody>" +
+      rows.map(r =>
+        "<tr><td>" + esc(fmtStamp(r.check_in_at)) + "</td>" +
+          '<td class="ltr">' + esc(fmtClock(r.check_in_at)) + "</td>" +
+          '<td class="ltr">' + esc(fmtClock(r.check_out_at)) + "</td>" +
+          "<td>" + esc(fmtMinutes(r.duration_minutes)) + "</td>" +
+          "<td>" + verdictChip(r.out_verdict || r.in_verdict) + "</td>" +
+          '<td><button class="btn ghost xs" data-fix="' + r.record_id +
+            '">تصحيح</button></td></tr>').join("") +
+      "</tbody></table></div></div>";
+
+  host.querySelectorAll("[data-fix]").forEach(b => {
+    b.onclick = () => openCorrection(Number(b.dataset.fix));
+  });
+}
+
+/* أنواع التصحيح. القوائم تُشتقّ من مفردات الخادم لا من نصّ حرّ:
+   قيمة لا يعرفها الخادم تُرفض 400، والمستخدم لا يفهم السبب. */
+const CORRECTION_KINDS = [
+  { v: "missing_check_in",  t: "نسيت تسجيل الحضور",  needs: ["in", "out"] },
+  { v: "missing_check_out", t: "نسيت تسجيل الانصراف", needs: ["out"] },
+  { v: "wrong_time",        t: "الوقت المسجّل خاطئ",  needs: ["in", "out"] },
+  { v: "rejected_location", t: "رفض النظام موقعي",   needs: ["out"] },
+  { v: "other",             t: "سبب آخر",            needs: [] },
+];
+
+/* إدخال وقت محلّي ← ISO بإزاحة صريحة. الخادم يرفض الطابع بلا
+   إزاحة، وهذا مقصود: "08:00" بلا منطقة ليست لحظة بل نيّة. */
+function localToIso(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  d.setSeconds(0, 0);
+  return d.toISOString().replace(/\.\d+Z$/, "+00:00");
+}
+
+function openCorrection(recordId) {
+  const kindOptions = CORRECTION_KINDS
+    .map(k => '<option value="' + k.v + '">' + esc(k.t) + "</option>").join("");
+
+  openDialog({
+    title: "طلب تصحيح",
+    body:
+      '<div class="stack tight">' +
+        '<label class="field"><span class="lb">نوع التصحيح</span>' +
+          '<select id="cxKind" class="in">' + kindOptions + "</select></label>" +
+        '<label class="field" id="cxInWrap"><span class="lb">وقت الحضور الصحيح</span>' +
+          '<input id="cxIn" type="datetime-local" class="in ltr"></label>' +
+        '<label class="field" id="cxOutWrap"><span class="lb">وقت الانصراف الصحيح</span>' +
+          '<input id="cxOut" type="datetime-local" class="in ltr"></label>' +
+        '<label class="field"><span class="lb">السبب</span>' +
+          '<textarea id="cxWhy" class="in" rows="3" ' +
+            'placeholder="اشرح ما حدث"></textarea></label>' +
+      "</div>",
+    confirmLabel: "إرسال الطلب",
+    onReady() {
+      const sync = () => {
+        const k = CORRECTION_KINDS.find(x => x.v === $("cxKind").value);
+        const needs = (k && k.needs) || [];
+        $("cxInWrap").style.display = needs.indexOf("in") >= 0 ? "" : "none";
+        $("cxOutWrap").style.display = needs.indexOf("out") >= 0 ? "" : "none";
+      };
+      $("cxKind").onchange = sync;
+      sync();
+    },
+    async onConfirm() {
+      const kind = $("cxKind").value;
+      const body = { kind: kind, record_id: recordId || null,
+                     reason: $("cxWhy").value.trim() };
+
+      const inIso = localToIso($("cxIn").value);
+      const outIso = localToIso($("cxOut").value);
+      if (inIso) body.requested_check_in_at = inIso;
+      if (outIso) body.requested_check_out_at = outIso;
+
+      try {
+        await apiJson("/attendance/corrections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        toast("أُرسل طلب التصحيح — ينتظر مراجعة مديرك", "ok");
+        await loadAttendance(true).catch(() => resources.attend);
+        if (state.route === "attendance") renderAttLog();
+      } catch (e) {
+        /* يبقى الحوار مفتوحاً: المستخدم كتب نصّاً ولا يُفقد بالإغلاق */
+        toast(e.message, "err");
+        return false;
+      }
+    },
+  });
+}
 
 PAGES.requests = {
   render() {
@@ -2059,7 +2492,7 @@ PAGES.knowledge = {
           '<button class="btn icon ghost" id="kClear" aria-label="مسح البحث" hidden>✕</button>' +
         "</div>" +
 
-        (isManager() ? '<section id="kUpload"></section>' : "") +
+        (isElevated() ? '<section id="kUpload"></section>' : "") +
 
         '<section id="kList">' + skeletonCard(3) + "</section>" +
 
@@ -2078,7 +2511,7 @@ PAGES.knowledge = {
   async mount() {
     wireNav($("view"));
 
-    if (isManager()) mountUploader();
+    if (isElevated()) mountUploader();
 
     const box = $("kSearch");
     box.value = docQuery;
@@ -2154,7 +2587,7 @@ function renderDocs() {
   if (!all.length) {
     host.innerHTML = '<div class="card">' +
       emptyState("▤", "لا مستندات متاحة",
-        isManager() ? "ارفع مستنداً ليبدأ المساعد بالإجابة منه."
+        isElevated() ? "ارفع مستنداً ليبدأ المساعد بالإجابة منه."
                     : "لم تُضَف مستندات إلى قاعدة المعرفة بعد.") + "</div>";
     return;
   }
@@ -2189,7 +2622,7 @@ function renderDocs() {
             '<td class="sm nowrap">' + (d.uploaded_by ? esc(d.uploaded_by) : "—") + "</td>" +
             '<td class="end nowrap">' +
               '<button class="btn sm ghost" data-view="' + esc(d.doc_hash) + '">التفاصيل</button>' +
-              (isManager()
+              (isElevated()
                 ? '<button class="btn sm ghost danger-text" data-del="' + esc(d.doc_hash) +
                   '">حذف</button>' : "") +
             "</td>" +
@@ -2237,15 +2670,15 @@ function showDocDetails(hash) {
   const wrap = openDialog({
     title: "تفاصيل المستند",
     body: body,
-    confirmLabel: isManager() ? "حذف المستند" : "إغلاق",
-    danger: isManager(),
+    confirmLabel: isElevated() ? "حذف المستند" : "إغلاق",
+    danger: isElevated(),
     onConfirm: async () => {
       closeOverlay();
-      if (isManager()) confirmDeleteDoc(hash);
+      if (isElevated()) confirmDeleteDoc(hash);
     },
   });
 
-  if (!isManager()) {
+  if (!isElevated()) {
     wrap.querySelectorAll(".dialog-foot [data-no]").forEach(b => b.remove());
   }
 }
@@ -2389,7 +2822,7 @@ function buildNotifications() {
   const L = resources.leave;
 
   /* --- للمدير: ما ينتظر قراره --- */
-  if (isManager() && P.state === "ready" && P.data.length) {
+  if (isElevated() && P.state === "ready" && P.data.length) {
     const oldest = P.data[0];
     out.push({
       key: "pending:" + P.data.length,
@@ -2447,7 +2880,7 @@ function buildNotifications() {
   }
 
   /* --- للمدير: قراراته الأخيرة --- */
-  if (isManager() && D.state === "ready") {
+  if (isElevated() && D.state === "ready") {
     (D.data || []).slice(0, 5).forEach(d => {
       out.push({
         key: "dec:" + d.id,
@@ -2574,7 +3007,7 @@ const partialWarning = keys =>
 const MGR_ACTIONS = [
   { ic: "✓", t: "مراجعة الطلبات", s: "اعتماد أو رفض",      go: "approvals" },
   { ic: "◔", t: "التنبيهات",      s: "ما يحتاج انتباهك",    go: "alerts" },
-  { ic: "◫", t: "التحليلات",      s: "الاستخدام والتكلفة",  go: "analytics" },
+  { ic: "◫", t: "التحليلات",      s: "الاستخدام والتكلفة",  go: "analytics", cap: "admin" },
   { ic: "✦", t: "المساعد",        s: "اسأل عن أي شيء",      go: "assistant" },
 ];
 
@@ -2589,7 +3022,7 @@ PAGES.team = {
         '<header class="welcome">' +
           '<div class="grow">' +
             '<h2 class="h1">' + greeting() + "، " + esc(name) + "</h2>" +
-            '<p class="sm mt-1">' + esc(today) + " — نظرة على طلبات فريقك.</p>" +
+            '<p class="sm mt-1">' + esc(today) + " — فريقك المباشر وطلباته.</p>" +
           "</div>" +
           '<span class="badge approved" id="tmState">جاهزة</span>' +
         "</header>" +
@@ -2599,7 +3032,7 @@ PAGES.team = {
         "<section>" +
           '<h3 class="label">إجراءات سريعة</h3>' +
           '<div class="quick">' +
-            MGR_ACTIONS.map(a =>
+            MGR_ACTIONS.filter(a => allowed(a.cap)).map(a =>
               '<button class="action" data-nav="' + a.go + '">' +
                 '<span class="ic" aria-hidden="true">' + a.ic + "</span>" +
                 '<span class="tx"><span class="t">' + esc(a.t) + "</span>" +
@@ -2608,6 +3041,9 @@ PAGES.team = {
           "</div>" +
         "</section>" +
 
+        '<section id="tmRoster">' + skeletonCard(3) + "</section>" +
+        '<section id="tmAttendance">' + skeletonCard(3) + "</section>" +
+        '<section id="tmCorrections">' + skeletonCard(2) + "</section>" +
         '<section id="tmPending">' + skeletonCard(3) + "</section>" +
         '<section id="tmDecisions">' + skeletonCard(2) + "</section>" +
 
@@ -2620,10 +3056,16 @@ PAGES.team = {
     await Promise.allSettled([
       loadPending().catch(() => resources.pending),
       loadDecisions().catch(() => resources.decisions),
+      loadTeam().catch(() => resources.team),
+      loadTeamAttendance().catch(() => resources.teamAtt),
+      loadCorrections().catch(() => resources.corrects),
     ]);
     if (state.route !== "team") return;
 
     renderTeamKpi();
+    renderTeamRoster();
+    renderTeamAttendance();
+    renderTeamCorrections();
     renderTeamPending();
     renderTeamDecisions();
     renderTeamState();
@@ -2631,10 +3073,215 @@ PAGES.team = {
   },
 };
 
+
+/* --- حضور الفريق --- */
+
+/* الخادم لا يعيد إحداثيات في هذا المسار أصلاً، فلا حجب هنا:
+   ما لا يصل لا يُحجب، والحجب في الواجهة ليس ضابطاً على أي حال. */
+function loadTeamAttendance(force) {
+  return loadResource("teamAtt", "/team/attendance" + attendanceWindow(30), {
+    force: force,
+    asList: true,
+    transform: r => (r && Array.isArray(r.records) ? r.records : []),
+  });
+}
+
+function loadCorrections(force) {
+  return loadResource("corrects", "/attendance/corrections/pending", {
+    force: force,
+    asList: true,
+    transform: r => (r && Array.isArray(r.corrections) ? r.corrections : []),
+  });
+}
+
+function renderTeamAttendance() {
+  const host = $("tmAttendance");
+  if (!host) return;
+
+  const A = resources.teamAtt;
+  if (A.state === "loading" || A.state === "idle") {
+    host.innerHTML = skeletonCard(3); return;
+  }
+  if (A.state === "error") { host.innerHTML = errorState(A.error); return; }
+
+  const rows = A.data || [];
+  if (!rows.length) {
+    host.innerHTML = emptyState("◷", "لا سجلّ حضور",
+      "لم يسجّل أحد من فريقك حضوراً خلال ثلاثين يوماً.");
+    return;
+  }
+
+  /* تجميع لكل موظف: المدير يحتاج من داوم وكم، لا تتبّعاً
+     ساعةً بساعة لكل فرد. والتفصيل في سجلّ الموظف نفسه. */
+  const byEmp = {};
+  rows.forEach(r => {
+    const k = r.employee_id;
+    if (!byEmp[k]) byEmp[k] = { name: r.employee_name || k, n: 0, open: false };
+    byEmp[k].n += 1;
+    if (!r.check_out_at) byEmp[k].open = true;
+  });
+
+  const entries = Object.entries(byEmp).sort((a, b) => b[1].n - a[1].n);
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">حضور الفريق — 30 يوماً</span>' +
+        '<span class="xs">' + entries.length + " موظفاً</span></div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>الموظف</th><th>الجلسات</th><th>الحالة</th>" +
+      "</tr></thead><tbody>" +
+      entries.map(([id, e]) =>
+        "<tr><td>" + esc(e.name) + "</td>" +
+          "<td>" + e.n + "</td>" +
+          "<td>" + (e.open ? '<span class="badge ok">حاضر الآن</span>'
+                           : '<span class="badge muted">—</span>') + "</td></tr>"
+      ).join("") +
+      "</tbody></table></div></div>";
+}
+
+function renderTeamCorrections() {
+  const host = $("tmCorrections");
+  if (!host) return;
+
+  const C = resources.corrects;
+  if (C.state === "loading" || C.state === "idle") {
+    host.innerHTML = skeletonCard(2); return;
+  }
+  if (C.state === "error") { host.innerHTML = errorState(C.error); return; }
+
+  const rows = C.data || [];
+  if (!rows.length) {
+    host.innerHTML = emptyState("✓", "لا تصحيحات معلّقة",
+      "طلبات تصحيح الحضور تظهر هنا.");
+    return;
+  }
+
+  const kindText = v =>
+    (CORRECTION_KINDS.find(k => k.v === v) || {}).t || v;
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">تصحيحات بانتظار قرارك</span>' +
+        '<span class="ct">' + rows.length + "</span></div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>الموظف</th><th>النوع</th><th>السبب</th><th>قُدّم</th><th></th>" +
+      "</tr></thead><tbody>" +
+      rows.map(c =>
+        "<tr><td>" + esc(c.employee_name || c.employee_id) + "</td>" +
+          "<td>" + esc(kindText(c.kind)) + "</td>" +
+          '<td class="xs">' + esc(c.reason || "—") + "</td>" +
+          "<td>" + esc(fmtStamp(c.created_at)) + "</td>" +
+          '<td class="nowrap">' +
+            '<button class="btn primary xs" data-ok="' + c.correction_id + '">اعتماد</button> ' +
+            '<button class="btn ghost xs" data-no-fix="' + c.correction_id + '">رفض</button>' +
+          "</td></tr>"
+      ).join("") +
+      "</tbody></table></div></div>";
+
+  host.querySelectorAll("[data-ok]").forEach(b => {
+    b.onclick = () => reviewCorrection(Number(b.dataset.ok), "approve");
+  });
+  host.querySelectorAll("[data-no-fix]").forEach(b => {
+    b.onclick = () => reviewCorrection(Number(b.dataset.noFix), "reject");
+  });
+}
+
+function reviewCorrection(cid, decision) {
+  const approving = decision === "approve";
+  confirmDialog(
+    approving ? "اعتماد التصحيح" : "رفض التصحيح",
+    '<p>' + (approving
+      ? "سيُطبَّق التصحيح على سجل الحضور فوراً."
+      : "سيُرفض الطلب ولن يتغيّر السجل.") + "</p>" +
+    '<label class="field mt-2"><span class="lb">ملاحظة (اختيارية)</span>' +
+      '<input id="cxNote" class="in" maxlength="300"></label>',
+    approving ? "اعتماد" : "رفض",
+    async () => {
+      try {
+        await apiJson("/attendance/corrections/" + cid + "/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            decision: decision,
+            note: ($("cxNote") && $("cxNote").value.trim()) || "",
+          }),
+        });
+        toast(approving ? "اعتُمد التصحيح" : "رُفض الطلب", "ok");
+        await Promise.allSettled([
+          loadCorrections(true).catch(() => resources.corrects),
+          loadTeamAttendance(true).catch(() => resources.teamAtt),
+        ]);
+        if (state.route === "team") {
+          renderTeamCorrections(); renderTeamAttendance();
+        }
+      } catch (e) {
+        /* 403 هنا يعني فصل المهام: صاحب الطلب لا يراجعه.
+           النصّ من الخادم لا من عندنا. */
+        toast(e.message, "err");
+        return false;
+      }
+    },
+    !approving,
+  );
+}
+
+/* --- فريقي: التقارير المباشرة من /me/team --- */
+
+function renderTeamRoster() {
+  const host = $("tmRoster");
+  if (!host) return;
+
+  const T = resources.team;
+
+  if (T.state === "error") { host.innerHTML = errorState(T.error); return; }
+  if (T.state !== "ready") { host.innerHTML = skeletonCard(3); return; }
+
+  const members = T.data || [];
+
+  if (!members.length) {
+    /* ليس خطأً: المسؤول قد لا يتبعه أحد مباشرةً، والخادم يعيد
+       المباشرين فقط لا الشجرة. نقول ذلك صراحةً بدل بطاقة فارغة. */
+    host.innerHTML = '<div class="card">' +
+      emptyState("◇", "لا تقارير مباشرة",
+        "لا يتبعك أحد مباشرةً في الهيكل الحالي." +
+        (isAdmin() ? " الهيكل الكامل في صفحة الهيكل التنظيمي." : "")) + "</div>";
+    return;
+  }
+
+  const leads = members.filter(m => m.direct_reports > 0).length;
+
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">فريقي المباشر</span>' +
+        '<span class="badge plain">' + members.length + " عضواً</span>" +
+        (leads ? '<span class="badge approved">' + leads + " رئيس فريق</span>" : "") +
+      "</div>" +
+      '<div class="table-wrap"><table class="table"><thead><tr>' +
+        "<th>الاسم</th><th>المسمّى</th><th>القسم</th>" +
+        '<th class="end">يتبعه</th>' +
+      "</tr></thead><tbody>" +
+        members.map(m =>
+          "<tr>" +
+            "<td>" + esc(m.name) +
+              (m.employment_status && m.employment_status !== "active"
+                ? ' <span class="badge cancelled">' + esc(m.employment_status) + "</span>" : "") +
+            "</td>" +
+            '<td class="sm">' + esc(m.job_title || "—") + "</td>" +
+            '<td class="sm">' + esc(m.department || "—") + "</td>" +
+            '<td class="end sm nowrap">' +
+              (m.direct_reports
+                ? '<span class="badge info">' + m.direct_reports + "</span>"
+                : "—") +
+            "</td>" +
+          "</tr>").join("") +
+      "</tbody></table></div>" +
+    "</div>";
+}
+
 function renderTeamState() {
   const el = $("tmState");
   if (!el) return;
-  const failed = ["pending", "decisions"].filter(k => resources[k].state === "error");
+  const failed = ["pending", "decisions", "team"].filter(k => resources[k].state === "error");
   if (failed.length) { el.className = "badge pending"; el.textContent = "بعض البيانات غير متاحة"; }
   else { el.className = "badge approved"; el.textContent = "جاهزة"; }
 }
@@ -3248,6 +3895,247 @@ function decide(id, decision) {
 
 /* ===================== التحليلات ===================== */
 
+/* ===================== الهيكل التنظيمي =====================
+   /org/structure — للمسؤول وحده (auth.is_admin في api.py).
+   الوجهة تحمل cap: "admin" فلا تظهر لغيره، والخادم يرفض على كل حال. */
+
+/* --- مواقع العمل (مسؤول فقط) --- */
+
+/* الخادم يعيد المعطّلة للمسؤول وحده، فلا ترشيح هنا: القائمة
+   التي تصل هي القائمة المصرّح بها. */
+function loadSites(force) {
+  return loadResource("sites", "/sites", {
+    force: force,
+    asList: true,
+    transform: r => (r && Array.isArray(r.sites) ? r.sites : []),
+  });
+}
+
+function renderSites() {
+  const host = $("orgSites");
+  if (!host) return;
+
+  const S = resources.sites;
+  if (S.state === "loading" || S.state === "idle") {
+    host.innerHTML = skeletonCard(2); return;
+  }
+  if (S.state === "error") { host.innerHTML = errorState(S.error); return; }
+
+  const rows = S.data || [];
+  host.innerHTML =
+    '<div class="card pad-0">' +
+      '<div class="card-head"><span class="h3 grow">مواقع العمل</span>' +
+        '<button class="btn primary sm" id="stAdd">موقع جديد</button></div>' +
+      (rows.length
+        ? '<div class="table-wrap"><table class="table"><thead><tr>' +
+            "<th>الاسم</th><th>النطاق</th><th>الحالة</th><th></th>" +
+          "</tr></thead><tbody>" +
+          rows.map(x =>
+            "<tr><td>" + esc(x.name) + "</td>" +
+              '<td class="ltr">' + (x.radius_m != null ? x.radius_m + " م" : "—") + "</td>" +
+              "<td>" + (x.is_active ? '<span class="badge ok">نشط</span>'
+                                    : '<span class="badge muted">معطّل</span>') + "</td>" +
+              '<td class="nowrap">' +
+                '<button class="btn ghost xs" data-site-edit="' + esc(x.site_id) +
+                  '">تعديل</button>' +
+                (x.is_active
+                  ? ' <button class="btn ghost xs" data-site-off="' + esc(x.site_id) +
+                    '">تعطيل</button>'
+                  : "") +
+              "</td></tr>").join("") +
+          "</tbody></table></div>"
+        : '<div class="pad">' + emptyState("⬡", "لا مواقع",
+            "أضف موقعاً ليتمكّن الموظفون من تسجيل الحضور.") + "</div>") +
+    "</div>";
+
+  const add = $("stAdd");
+  if (add) add.onclick = () => openSiteDialog(null);
+
+  host.querySelectorAll("[data-site-edit]").forEach(b => {
+    b.onclick = () => openSiteDialog(
+      (resources.sites.data || []).find(x => x.site_id === b.dataset.siteEdit) || null);
+  });
+  host.querySelectorAll("[data-site-off]").forEach(b => {
+    b.onclick = () => confirmSiteOff(b.dataset.siteOff);
+  });
+}
+
+function openSiteDialog(site) {
+  const editing = !!site;
+  openDialog({
+    title: editing ? "تعديل الموقع" : "موقع جديد",
+    body:
+      '<div class="stack tight">' +
+        '<label class="field"><span class="lb">الاسم</span>' +
+          '<input id="stName" class="in" maxlength="120" value="' +
+            esc(editing ? site.name : "") + '"></label>' +
+        (editing ? "" :
+          '<label class="field"><span class="lb">خط العرض</span>' +
+            '<input id="stLat" class="in ltr" inputmode="decimal"></label>' +
+          '<label class="field"><span class="lb">خط الطول</span>' +
+            '<input id="stLon" class="in ltr" inputmode="decimal"></label>') +
+        '<label class="field"><span class="lb">النطاق بالمتر</span>' +
+          '<input id="stRad" class="in ltr" inputmode="numeric" value="' +
+            esc(editing && site.radius_m != null ? site.radius_m : 200) + '"></label>' +
+        (editing
+          ? '<p class="xs">الإحداثيات لا تُعدَّل بعد الإنشاء: تغييرها يُغيّر معنى ' +
+            "كل سجل حضور سابق في هذا الموقع بأثر رجعي.</p>"
+          : "") +
+      "</div>",
+    confirmLabel: editing ? "حفظ" : "إنشاء",
+    focus: "stName",
+    async onConfirm() {
+      const body = { name: $("stName").value.trim(),
+                     radius_m: Number($("stRad").value) };
+      if (!editing) {
+        body.latitude = Number($("stLat").value);
+        body.longitude = Number($("stLon").value);
+      }
+      try {
+        if (editing) {
+          await apiJson("/sites/" + encodeURIComponent(site.site_id), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        } else {
+          await apiJson("/sites", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        }
+        toast(editing ? "حُفظ الموقع" : "أُنشئ الموقع", "ok");
+        await loadSites(true).catch(() => resources.sites);
+        if (state.route === "org") renderSites();
+      } catch (e) {
+        toast(e.message, "err");
+        return false;
+      }
+    },
+  });
+}
+
+function confirmSiteOff(siteId) {
+  confirmDialog(
+    "تعطيل الموقع",
+    "<p>لن يستطيع الموظفون تسجيل الحضور من هذا الموقع. " +
+      "السجلات السابقة تبقى كما هي.</p>",
+    "تعطيل",
+    async () => {
+      try {
+        await apiJson("/sites/" + encodeURIComponent(siteId) + "/deactivate",
+                      { method: "POST" });
+        toast("عُطّل الموقع", "ok");
+        await loadSites(true).catch(() => resources.sites);
+        if (state.route === "org") renderSites();
+      } catch (e) {
+        toast(e.message, "err");
+        return false;
+      }
+    },
+    true,
+  );
+}
+
+PAGES.org = {
+  render() {
+    return '<div class="page"><div class="page-in" id="orgBox">' +
+      metricSkeleton() + skeletonCard(4) + "</div></div>";
+  },
+
+  async mount() {
+    let o;
+    try { o = await apiJson("/org/structure"); }
+    catch (e) { $("orgBox").innerHTML = errorState(e.message); return; }
+    if (state.route !== "org") return;
+
+    const t = o.totals || {};
+    const depts = o.departments || [];
+    const unassigned = o.unassigned || [];
+    const unplaced = o.unplaced || [];
+
+    $("orgBox").innerHTML =
+      '<div class="stack" style="gap:var(--s6)">' +
+
+        '<div class="grid g4">' +
+          metricCard(t.departments, "قسماً") +
+          metricCard(t.employees, "موظفاً", "على رأس العمل") +
+          metricCard(t.managers, "مديراً", "يتبعه موظف واحد على الأقل") +
+          metricCard(t.reporting_links, "خط تبعية", "علاقة مدير ← موظف") +
+        "</div>" +
+
+        /* سجلات بمعرّف قسم لا يقابله قسم — تُعرض ولا تُسقط بصمت */
+        (unplaced.length
+          ? '<div class="card"><div class="h3 mb">سجلات غير مرتبطة بقسم</div>' +
+            '<p class="sm mb">' + unplaced.length + " سجلاً يحمل معرّف قسم لا يقابله قسم " +
+            "قائم. تُعرض هنا لأن إسقاطها بصمت يخفي خللاً في البيانات.</p>" +
+            '<div class="stack tight">' +
+            unplaced.map(p => '<div class="row"><span class="sm grow">' + esc(p.name) +
+              '</span><span class="xs ltr">' + esc(p.employee_id) + "</span></div>").join("") +
+            "</div></div>"
+          : "") +
+
+        depts.map(d =>
+          '<div class="card pad-0">' +
+            '<div class="card-head">' +
+              '<span class="h3 grow">' + esc(d.name) + "</span>" +
+              (d.manager_name
+                ? '<span class="badge approved">' + esc(d.manager_name) + "</span>"
+                : '<span class="badge pending">بلا مدير</span>') +
+              '<span class="badge plain">' + d.headcount + "</span>" +
+            "</div>" +
+            (d.roots && d.roots.length
+              ? '<div class="stack tight pad">' + orgTree(d.roots, 0) + "</div>"
+              : '<div class="pad"><p class="sm">لا سجلات ظاهرة في هذا القسم.</p></div>') +
+          "</div>").join("") +
+
+        (unassigned.length
+          ? '<div class="card pad-0">' +
+            '<div class="card-head"><span class="h3 grow">بلا قسم</span>' +
+              '<span class="badge plain">' + unassigned.length + "</span></div>" +
+            '<div class="stack tight pad">' + orgTree(unassigned, 0) + "</div>" +
+            "</div>"
+          : "") +
+
+        '<section id="orgSites">' + skeletonCard(2) + "</section>" +
+
+      "</div>";
+
+    await loadSites(true).catch(() => resources.sites);
+    if (state.route !== "org") return;
+    renderSites();
+  },
+};
+
+/* شجرة التبعية — استدعاء ذاتي بعمق محدود.
+   MAX_CHAIN_DEPTH في org.py هو 32 ويرفض الحلقات، لكن الواجهة لا
+   تفترض سلامة ما يصل: نوقف العرض عند 16 مستوى بدل أن ننهار. */
+const ORG_MAX_DEPTH = 16;
+
+function orgTree(nodes, depth) {
+  if (!Array.isArray(nodes) || depth > ORG_MAX_DEPTH) return "";
+
+  return nodes.map(n => {
+    const kids = Array.isArray(n.reports) ? n.reports : [];
+    const inactive = n.employment_status && n.employment_status !== "active";
+
+    return '<div class="row" style="padding-inline-start:' + (depth * 18) + 'px">' +
+        '<span class="xs">' + (depth ? "└" : "●") + "</span>" +
+        '<span class="sm">' + esc(n.name) +
+          (inactive ? ' <span class="badge cancelled">' + esc(n.employment_status) +
+                      "</span>" : "") +
+        "</span>" +
+        /* المسمّى يلاصق الاسم؛ الفراغ يدفع الشارة وحدها إلى الطرف */
+        (n.job_title ? '<span class="xs">· ' + esc(n.job_title) + "</span>" : "") +
+        '<span class="grow"></span>' +
+        (kids.length ? '<span class="badge info">' + kids.length + "</span>" : "") +
+      "</div>" +
+      orgTree(kids, depth + 1);
+  }).join("");
+}
+
+
 PAGES.analytics = {
   render() { return '<div class="page"><div class="page-in" id="anBox">' + skeletonCard(4) + "</div></div>"; },
 
@@ -3330,7 +4218,9 @@ PAGES.settings = {
           '<button id="thDark">داكن</button><button id="thLight">فاتح</button></div>' +
       "</div>" +
 
-      (isManager() ? '<div id="usersBox">' + skeletonCard(2) + "</div>" : "") +
+      /* /auth/users صار is_admin في الخطوة 1 — فالمدير لا يرى الصندوق
+         بدل أن يراه ويصطدم بـ403 */
+      (isAdmin() ? '<div id="usersBox">' + skeletonCard(2) + "</div>" : "") +
 
       '<div class="card">' +
         '<div class="h3">الجلسة</div>' +
@@ -3349,7 +4239,7 @@ PAGES.settings = {
     $("thLight").onclick = () => { setTheme("light"); PAGES.settings.mount(); };
     $("setLogout").onclick = () => signOut();
 
-    if (isManager()) {
+    if (isAdmin()) {
       $("pgActions").innerHTML = '<button class="btn primary sm" id="addUser">حساب جديد</button>';
       $("addUser").onclick = showAddUser;
       refreshUsers();
@@ -3357,9 +4247,7 @@ PAGES.settings = {
   },
 };
 
-const roleBadge = () => isManager()
-  ? '<span class="badge approved">مدير</span>'
-  : '<span class="badge info">موظف</span>';
+const roleBadge = () => roleChip(state.user && state.user.role);
 
 async function refreshUsers() {
   const box = $("usersBox");
@@ -3381,9 +4269,7 @@ async function refreshUsers() {
             "<td>" + esc(u.employee_name) + "</td>" +
             '<td class="ltr sm">' + esc(u.username) + "</td>" +
             '<td class="ltr sm">' + esc(u.employee_id) + "</td>" +
-            "<td>" + (u.role === "manager"
-              ? '<span class="badge approved">مدير</span>'
-              : '<span class="badge info">موظف</span>') + "</td>" +
+            "<td>" + roleChip(u.role) + "</td>" +
             '<td class="end">' + (u.employee_name === (state.user && state.user.name) ? ""
               : '<button class="btn sm ghost" data-du="' + esc(u.username) + '">حذف</button>') + "</td>" +
           "</tr>").join("") +
@@ -3487,7 +4373,7 @@ function showApp() {
 
   const u = state.user;
   $("whoName").textContent = u.name;
-  $("whoRole").textContent = isManager() ? "مدير" : "موظف";
+  $("whoRole").textContent = roleLabel(u.role);
   $("avatar").textContent = (u.name || "?").trim().charAt(0);
 
   const start = location.hash.replace("#", "") || "home";
@@ -3533,9 +4419,12 @@ async function signIn() {
     if (!res.ok) throw new Error(d.detail || "تعذّر تسجيل الدخول");
 
     state.token = d.token;
-    state.user = { name: d.name, role: d.role, id: d.employee_id };
+    /* /auth/login يعيد أربعة حقول؛ /auth/me يعيد أحد عشر.
+       نثبّت الهوية الأساسية أولاً ثم نُثريها، فيتساوى مسار
+       الدخول مع مسار الإقلاع ولا تتفرّع الواجهة على نقص حقل. */
+    state.user = adoptUser({ name: d.name, role: d.role, id: d.employee_id });
     store.set("token", state.token);
-    store.set("user", state.user);
+    await refreshMe();
 
     $("lgPass").value = "";
     showApp();
@@ -3607,13 +4496,7 @@ setTheme(store.get("theme", "dark"));
 (async function boot() {
   if (!state.token) { showLogin(); return; }
   try {
-    const r = await fetch(API + "/auth/me", {
-      headers: { Authorization: "Bearer " + state.token },
-    });
-    if (!r.ok) throw new Error();
-    const me = await r.json();
-    state.user = { name: me.name, role: me.role, id: me.id };
-    store.set("user", state.user);
+    if (!await refreshMe()) throw new Error();
     showApp();
   } catch (e) {
     signOut();

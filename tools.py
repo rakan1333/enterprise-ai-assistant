@@ -122,36 +122,40 @@ def _query(sql, params=()):
     try: return [dict(r) for r in conn.execute(sql, params).fetchall()]
     finally: conn.close()
 
+# رسالة واحدة لـ"غير موجود" و"غير مسموح": تمييزهما يتيح لأي موظف
+# أن يعدّد زملاءه بتخمين الأسماء (هذا موجود، وذاك لا).
+NOT_IN_SCOPE = "لا يوجد موظف ضمن نطاقك بهذا الاسم"
+
+
 def get_employee(name, actor=None):
     """actor: هوية المستخدم الطالب. None يعني استدعاءً داخلياً.
 
     الاسم يُستخدم للبحث فقط. الصلاحية تُفحص على السجل الموجود
     بمعرّفه الوظيفي — لا على النص المُدخَل.
+
+    خارج نطاق المؤسسة: التطابقات تُضيَّق إلى المسموح قبل أي رد، ولا
+    يُكشف وجود من خارجه — لا باسم ولا بعدد ولا برسالة مختلفة.
     """
     log.info("أداة get_employee | الاسم: %s", name)
 
     rows = _query("SELECT * FROM employees WHERE name LIKE ?", (f"%{name}%",))
-    if not rows:
+    scoped = actor is not None and _scope(actor) != "org"
+
+    if scoped:
+        # التضييق قبل كل شيء — لا اسم خارج النطاق يغادر هذي الدالة
+        rows = [r for r in rows if _owns(actor, r["employee_id"], r["name"])]
+        if not rows:
+            log.warning("لا نتيجة ضمن النطاق: %s سأل عن %s", actor.get("name"), name)
+            return {"found": False, "message": NOT_IN_SCOPE}
+    elif not rows:
         return {"found": False, "message": f"لا يوجد موظف بالاسم: {name}"}
 
     if len(rows) > 1:
-        # الموظف يرى نفسه فقط — نُضيّق التطابقات لسجله إن كان بينها
-        if actor and not _is_elevated(actor):
-            rows = [r for r in rows if _owns(actor, r["employee_id"], r["name"])]
-            if not rows:
-                log.warning("منع وصول: %s حاول قراءة بيانات %s", actor.get("name"), name)
-                return {"found": False, "message": "لا يمكنك الاطلاع على بيانات موظف آخر"}
-        if len(rows) > 1:
-            return {"found": True, "multiple": True,
-                    "matches": [r["name"] for r in rows],
-                    "message": "عدة تطابقات — حدّد الاسم أكثر"}
+        return {"found": True, "multiple": True,
+                "matches": [r["name"] for r in rows],
+                "message": "عدة تطابقات — حدّد الاسم أكثر"}
 
-    row = rows[0]
-    if not _owns(actor, row["employee_id"], row["name"]):
-        log.warning("منع وصول: %s حاول قراءة بيانات %s", actor.get("name"), row["name"])
-        return {"found": False, "message": "لا يمكنك الاطلاع على بيانات موظف آخر"}
-
-    return {"found": True, "employee": row}
+    return {"found": True, "employee": rows[0]}
 
 def get_leave_balance(name, actor=None):
     log.info("أداة get_leave_balance | الاسم: %s", name)
@@ -389,11 +393,20 @@ def preview_leave_request(name: str, start_date: str, days: int, actor=None) -> 
     """
     log.info("أداة preview_leave_request | %s | %s | %s يوم", name, start_date, days)
 
+    # التقديم لنفسك فقط، أياً كان دورك. لو قدّم المدير باسم موظفه ثم
+    # اعتمده، صار هو الطالب الفعلي ومتخذ القرار معاً — فيُخصم رصيد
+    # الموظف دون أن يطلب. نفس رسالة الرفض سواء وُجد الاسم أم لا.
+    if actor is not None:
+        own_id = (actor.get("employee_id") or "").strip()
+        candidates = _query("SELECT employee_id FROM employees WHERE name LIKE ?", (f"%{name}%",))
+        if not own_id or own_id not in {c["employee_id"] for c in candidates}:
+            log.warning("منع طلب لغير النفس: %s باسم %s", actor.get("name"), name)
+            return {"valid": False,
+                    "reason": "لا يمكنك تقديم طلب باسم موظف آخر — يمكنك التقديم لنفسك فقط"}
+        own = _query("SELECT name FROM employees WHERE employee_id = ?", (own_id,))
+        name = own[0]["name"] if own else name     # الهوية من الرمز لا من النموذج
+
     emp = get_employee(name)
-    if emp.get("found") and not emp.get("multiple"):
-        if not _owns(actor, emp["employee"]["employee_id"], emp["employee"]["name"]):
-            log.warning("منع طلب: %s باسم %s", actor.get("name"), name)
-            return {"valid": False, "reason": "لا يمكنك تقديم طلب باسم موظف آخر"}
 
     if not emp.get("found"):
         return {"valid": False, "reason": emp.get("message", "الموظف غير موجود")}
@@ -836,3 +849,291 @@ def review_leave_request(
         "remaining_balance": remaining,
         "note": note,
     }
+
+
+# ---------- أدوات "أنا" وهيكل المؤسسة (المرحلة 5، الخطوة 6) ----------
+#
+# لا تقبل أي معامل من النموذج: الهوية تأتي من actor الذي يحقنه
+# الخادم بعد التحقق من الرمز. الموزّع في agent.py يستدعيها بلا
+# **args، فما يرسله النموذج (employee_id، manager_id، role، scope)
+# لا يصل إليها أصلاً.
+
+_NO_IDENTITY = {"authorized": False, "reason": "تعذّر التحقق من هويتك"}
+
+
+def _actor_id(actor) -> str:
+    return ((actor or {}).get("employee_id") or "").strip()
+
+
+def get_my_profile(actor=None) -> dict:
+    """بياناتي الوظيفية — نفس حقول /auth/me."""
+    log.info("أداة get_my_profile")
+    me_id = _actor_id(actor)
+    if not me_id:
+        return dict(_NO_IDENTITY)
+
+    import org
+    emp = org.employee_by_id(me_id, path=DB_PATH)
+    if not emp:
+        return {"found": False, "message": "لا يوجد سجل موظف مرتبط بحسابك"}
+
+    mgr = org.employee_by_id(emp["manager_id"], path=DB_PATH) if emp.get("manager_id") else None
+    return {"found": True, "profile": {
+        "employee_id": emp["employee_id"],
+        "name": emp["name"],
+        "role": actor.get("role"),
+        "department": emp.get("department"),
+        "department_id": emp.get("department_id"),
+        "job_title": emp.get("job_title"),
+        "manager_id": emp.get("manager_id"),
+        "manager_name": mgr["name"] if mgr else None,
+        "employment_status": emp.get("employment_status") or "active",
+        "email": emp.get("email"),
+        "hire_date": emp.get("hire_date"),
+    }}
+
+
+def get_my_manager(actor=None) -> dict:
+    """مديري المباشر — الاسم والمسمى والقسم فقط، لا بياناته الشخصية."""
+    log.info("أداة get_my_manager")
+    me_id = _actor_id(actor)
+    if not me_id:
+        return dict(_NO_IDENTITY)
+
+    import org
+    mgr = org.manager_of(me_id, path=DB_PATH)
+    if not mgr:
+        return {"has_manager": False, "message": "لا يوجد مدير مُسنَد لك في النظام"}
+
+    return {"has_manager": True, "manager": {
+        "employee_id": mgr["employee_id"],
+        "name": mgr["name"],
+        "job_title": mgr.get("job_title"),
+        "department": mgr.get("department"),
+    }}
+
+
+def get_my_team(actor=None) -> dict:
+    """تقاريري المباشرة فقط — نفس ما تعيده /me/team.
+
+    الموظف: قائمة فارغة. المدير والمسؤول: من يرفعون له مباشرة،
+    لا الشجرة كاملة.
+    """
+    log.info("أداة get_my_team")
+    me_id = _actor_id(actor)
+    if not me_id:
+        return dict(_NO_IDENTITY)
+
+    members = []
+    if _scope(actor) != "self":
+        import org
+        members = [{
+            "employee_id": m["employee_id"],
+            "name": m["name"],
+            "job_title": m["job_title"],
+            "department": m.get("department"),
+            "direct_reports": m.get("direct_reports", 0),
+        } for m in org.direct_reports_view(me_id, path=DB_PATH)]
+
+    return {"relationship": "direct_reports", "count": len(members), "members": members}
+
+
+def get_organization(actor=None) -> dict:
+    """ملخّص هيكل المؤسسة — للمسؤول وحده.
+
+    ملخّص لا شجرة: الشجرة الكاملة ~31 ألف حرف تزاحم سياق النموذج
+    لكل سؤال. التفاصيل على مستوى الموظف متاحة عبر
+    list_department_employees المقيّدة بالنطاق.
+    """
+    log.info("أداة get_organization")
+    if actor is not None and _scope(actor) != "org":
+        log.warning("منع هيكل المؤسسة: %s (%s)", actor.get("name"), actor.get("role"))
+        return {"authorized": False, "reason": "هيكل المؤسسة يتطلب صلاحية مسؤول"}
+
+    import org
+    tree = org.organization_tree(path=DB_PATH)
+
+    def leads(nodes):
+        for n in nodes:
+            if n["reports"]:
+                yield {"name": n["name"], "job_title": n["job_title"],
+                       "direct_reports": len(n["reports"])}
+            yield from leads(n["reports"])
+
+    return {"authorized": True, "totals": tree["totals"], "departments": [{
+        "department": d["name"],
+        "manager": d.get("manager_name") or None,
+        "headcount": d["headcount"],
+        "team_leads": list(leads(d["roots"])),
+    } for d in tree["departments"]]}
+
+
+# ===================== نطاق الحضور =====================
+
+def attendance_scope(actor) -> set[str] | None:
+    """المعرّفات التي يحقّ للفاعل رؤية حضورها.
+
+    نطاق واحد لا نطاقان: يعيد استخدام _visible_employee_ids ذاتها
+    التي تحكم الإجازات والأقسام. إدخال مفهوم ثانٍ للنطاق هنا يعني
+    مكانين يجب أن يتفقا، وهما يفترقان عند أول تعديل.
+
+    None = بلا حدّ (مسؤول). المجموعة الفارغة = لا أحد.
+    والموظف يحصل على معرّفه وحده، فـ/me/attendance لا تحتاجها
+    أصلاً — تستعمل هوية الفاعل مباشرةً.
+    """
+    return _visible_employee_ids(actor)
+
+
+# ===================== أدوات الحضور (قراءة فقط) =====================
+#
+# ثلاث أدوات قراءة، ولا أداة كتابة. check_in و check_out **ليستا**
+# أداتَي وكيل بقرار موثَّق:
+#
+#   في الواجهة يسلّم navigator.geolocation الإحداثيات للمتصفّح
+#   مباشرةً. وعبر الوكيل يكتبها المستخدم نصّاً وينقلها النموذج،
+#   فيزول الفرق بين «الجهاز أبلغ» و«المستخدم ادّعى» — وهو الفرق
+#   الوحيد الذي يقوم عليه فصل in_reported_* عن in_computed_*.
+#
+#   «سجّل حضوري من 24.7136, 46.6753» تزوير مكتمل بلا أداة اختراق،
+#   والإحداثيات متاحة لكل موظف من /sites بحكم التصميم. وكل حارس
+#   نصّي يُوضع ضدّه سباق مع صياغات لا تنتهي، فالحدّ الوحيد الذي لا
+#   يُلتفّ عليه هو ألّا يوجد المسار.
+#
+# أثر ذلك: WRITE_TOOLS و WRITE_SUCCESS_KEY في agent.py لا تتغيّران.
+
+MAX_ATTENDANCE_DAYS = 31
+_BAD_DAYS = {"authorized": False,
+             "reason": f"عدد الأيام يجب أن يكون بين 1 و{MAX_ATTENDANCE_DAYS}"}
+
+
+def _days_window(days) -> tuple[str, str] | None:
+    """يحوّل عدد أيام إلى حدّي نافذة بـ UTC، أو None إن كان خارج المدى.
+
+    النموذج يملك هذا المعامل وحده، فيُقصّ هنا لا في الطبقة الأدنى:
+    days=100000 يسحب القاعدة كلها إلى سياق النموذج.
+    """
+    try:
+        n = int(days)
+    except (TypeError, ValueError):
+        return None
+    if not 1 <= n <= MAX_ATTENDANCE_DAYS:
+        return None
+
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    return (now - timedelta(days=n)).isoformat(), (now + timedelta(days=1)).isoformat()
+
+
+def get_my_attendance(days: int = 7, actor=None) -> dict:
+    """سجل حضوري — ملخّص بلا إحداثيات.
+
+    الهوية من الجلسة لا من النموذج: لا معامل employee_id في
+    التوقيع أصلاً، فلا يوجد ما يُزوَّر.
+
+    الدقائق مفصولة بمصدرها كما في /me/attendance: ما قاسه السياج
+    منفصلٌ عمّا اعتمده إنسان. دمجهما في رقم واحد يُفقد الجواب
+    معناه حين يُسأل عنه.
+    """
+    log.info("أداة get_my_attendance")
+    me_id = _actor_id(actor)
+    if not me_id:
+        return dict(_NO_IDENTITY)
+
+    window = _days_window(days)
+    if window is None:
+        return dict(_BAD_DAYS)
+
+    import attendance
+    attendance.DB_PATH = DB_PATH
+    start, end = window
+    rows = attendance.records_for([me_id], start=start, end=end)
+    openrow = attendance.open_session(me_id)
+
+    return {
+        "authorized": True,
+        "days": int(days),
+        "count": len(rows),
+        "open_session": None if openrow is None else {
+            "check_in_at": openrow["check_in_at"],
+            "site_id": openrow["site_id"],
+        },
+        "totals": attendance.summarize(rows),
+        "sessions": [{
+            "check_in_at": r["check_in_at"],
+            "check_out_at": r["check_out_at"],
+            "verdict": r["in_verdict"],
+            "closure": r["out_verdict"],
+            "duration_minutes": attendance.record_minutes(r),
+            "counts_toward_work": attendance.counts_toward_work(r),
+        } for r in rows],
+    }
+
+
+def get_team_attendance(days: int = 7, actor=None) -> dict:
+    """ملخّص حضور فريقي — للمدير والمسؤول.
+
+    ملخّص لكل موظف لا سجلات مفردة: المدير يحتاج أن يعرف من داوم
+    وكم، لا أن يتتبّع دخول موظفه وخروجه ساعةً بساعة. والسجل
+    المفصّل متاح له في /team/attendance حين يحتاجه فعلاً.
+
+    بلا إحداثيات ولا دقّة ولا مسافة ولا IP — لا في هذه ولا في تلك.
+    """
+    log.info("أداة get_team_attendance")
+    if actor and not _is_elevated(actor):
+        return {"authorized": False,
+                "reason": "عرض حضور الفريق يتطلب صلاحية مدير",
+                "count": 0, "employees": []}
+
+    window = _days_window(days)
+    if window is None:
+        return dict(_BAD_DAYS)
+
+    scope_ids = attendance_scope(actor)
+    if scope_ids is not None and not scope_ids:
+        return {"authorized": True, "days": int(days), "count": 0, "employees": []}
+
+    import attendance
+    attendance.DB_PATH = DB_PATH
+    start, end = window
+    rows = attendance.records_for(scope_ids, start=start, end=end)
+
+    grouped: dict[str, list] = {}
+    for r in rows:
+        grouped.setdefault(r["employee_id"], []).append(r)
+
+    names = attendance.employee_names(grouped.keys())
+    employees = [{
+        "employee_id": emp,
+        "name": names.get(emp),
+        "sessions": len(recs),
+        "open_now": any(r["check_out_at"] is None for r in recs),
+        **attendance.summarize(recs),
+    } for emp, recs in sorted(grouped.items())]
+
+    return {"authorized": True, "days": int(days),
+            "scope": "org" if scope_ids is None else "team",
+            "count": len(employees), "employees": employees}
+
+
+def list_sites(actor=None) -> dict:
+    """مواقع العمل المعتمدة — الاسم والنطاق بلا إحداثيات.
+
+    الواجهة تحصل على الإحداثيات من /sites لأنها ترسم الخريطة
+    وتقيس القرب. والنموذج لا يرسم شيئاً، فحجبها هنا بلا تكلفة —
+    وإعطاؤه إياها يضع نصّ «المقرّ الرئيسي عند 24.7136, 46.6753»
+    في سياق محادثة يقرأها المستخدم.
+
+    المعطّلة للمسؤول وحده، كما في /sites تماماً.
+    """
+    log.info("أداة list_sites")
+    import auth
+    import attendance
+    attendance.DB_PATH = DB_PATH
+
+    rows = attendance.sites(active_only=not auth.is_admin(actor or {}))
+    return {"authorized": True, "count": len(rows), "sites": [{
+        "site_id": s["site_id"],
+        "name": s["name"],
+        "radius_m": s["radius_m"],
+        "is_active": bool(s["is_active"]),
+    } for s in rows]}

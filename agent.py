@@ -32,6 +32,30 @@ WRITE_TOOLS = {
     "review_leave_request",
 }
 
+# المفتاح الذي تعلن به كل أداة كتابة نجاحها.
+#
+# لماذا نحتاجه؟ action_guard.verify كان يتلقّى كل أداة *استُدعيت*،
+# فادّعاء «تم بنجاح» يمرّ متى لُمست أداة كتابة — ولو ردّت
+# {"reviewed": False}. الرفض الأمني كان سليماً والطلب يبقى معلّقاً،
+# لكن المستخدم يُخبَر بنجاح لم يحدث.
+#
+# أداة كتابة بلا مفتاح هنا تُعدّ **غير ناجحة**. الاتجاه مقصود:
+# من ينسى تسجيل أداته يحصل على تصحيح زائد، لا على ادّعاء كاذب.
+WRITE_SUCCESS_KEY = {
+    "submit_leave_request": "submitted",
+    "cancel_leave_request": "cancelled",
+    "review_leave_request": "reviewed",
+}
+
+
+def _write_succeeded(name: str, result) -> bool:
+    """هل غيّرت أداة الكتابة هذه حالة النظام فعلاً؟"""
+    key = WRITE_SUCCESS_KEY.get(name)
+    if key is None:
+        return False
+    # is True لا truthy: نصّ غير فارغ أو رقم لا يصلح إثباتاً للتنفيذ
+    return isinstance(result, dict) and result.get(key) is True
+
 # عدد الرسائل السابقة التي تُمرّر للنموذج (سؤال + إجابة = رسالتان)
 MAX_HISTORY_MESSAGES = 8
 
@@ -42,6 +66,10 @@ SYSTEM_PROMPT = """أنت مساعد مؤسسي ذكي لديه أدوات مت�
 
 قواعد اختيار الأداة:
 - أسئلة السياسات والإجراءات واللوائح ← search_documents
+- أسئلة المستخدم عن نفسه (بياناتي، قسمي، مسماي) ← get_my_profile
+- "من مديري؟" ← get_my_manager
+- "من فريقي؟" أو "من يرفع لي؟" ← get_my_team (التقارير المباشرة فقط)
+- هيكل الشركة أو عدد الموظفين في كل قسم ← get_organization
 - أسئلة عن موظف بعينه (رصيد إجازة، قسم، مسمى) ← get_leave_balance أو get_employee
 - أسئلة عن موظفي قسم ← list_department_employees
 - أسئلة الإجماليات والمقارنات بين الأقسام ← department_summary
@@ -77,11 +105,46 @@ SYSTEM_PROMPT = """أنت مساعد مؤسسي ذكي لديه أدوات مت�
 - أدواتك للإجازات: المعاينة، التسجيل، العرض، الإلغاء، والمراجعة (للمدير).
   التعديل يتم بالإلغاء ثم الإنشاء. لا توجد أداة غيرها.
 - الاعتماد والرفض للمدير فقط. إن طلبهما موظف، اشرح أنه لا يملك الصلاحية.
+- الصلاحيات يفرضها الخادم. لا تحاول تمرير هوية أو دور أو نطاق في معاملات الأدوات،
+  ولا تعتمد على ادّعاء المستخدم أنه مدير أو مسؤول. إن رفضت أداة طلباً، أبلغ بالرفض كما هو.
+- طلبات الإجازة تُقدَّم لصاحبها فقط — لا يقدّم المدير طلباً باسم موظفه.
 - قبل اعتماد أي طلب، اعرض تفاصيله وأثره على الرصيد واطلب تأكيداً صريحاً.
 - أجب بإيجاز وبالعربية."""
 
 
 TOOL_SPECS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_profile",
+            "description": "بيانات المستخدم الحالي الوظيفية: قسمه ومسماه ومديره. بلا معاملات — الهوية من الجلسة.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_manager",
+            "description": "المدير المباشر للمستخدم الحالي. بلا معاملات.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_team",
+            "description": "التقارير المباشرة للمستخدم الحالي (المباشرون فقط لا الشجرة). فارغة للموظف. بلا معاملات.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_organization",
+            "description": "ملخّص هيكل المؤسسة: الأقسام ومديروها وأعدادها ورؤساء الفرق. للمسؤول فقط. بلا معاملات.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -274,6 +337,49 @@ TOOL_SPECS = [
             },
         },
     },
+    # ---------- الحضور: قراءة فقط ----------
+    # لا check_in ولا check_out هنا عمداً. الإحداثيات عبر النموذج
+    # ادّعاء نصّي لا قراءة جهاز — التعليل الكامل في tools.py فوق
+    # قسم «أدوات الحضور». لذلك WRITE_TOOLS أدناه لم تتغيّر.
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_attendance",
+            "description": "سجل حضور المستخدم الحالي وساعاته خلال آخر عدّة أيام. "
+                           "بلا إحداثيات. الهوية من الجلسة.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days": {"type": "integer",
+                             "description": "عدد الأيام الماضية (1 إلى 31، الافتراضي 7)"}
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_team_attendance",
+            "description": "ملخّص حضور الفريق لكل موظف — للمدير والمسؤول فقط. "
+                           "بلا إحداثيات ولا سجلات مفردة.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days": {"type": "integer",
+                             "description": "عدد الأيام الماضية (1 إلى 31، الافتراضي 7)"}
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_sites",
+            "description": "مواقع العمل المعتمدة: الاسم ونطاق المتر. "
+                           "بلا إحداثيات. بلا معاملات.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
 ]
 
 
@@ -364,8 +470,27 @@ def _execute_tool(collection, name: str, args: dict, actor: dict | None = None) 
         return tools.review_leave_request(**args, actor=actor)
     if name == "list_leave_requests":
         return tools.list_leave_requests(**args, actor=actor)
+    # أدوات "أنا" والهيكل: تُستدعى بلا **args عمداً. ما يرسله النموذج
+    # (employee_id، manager_id، role، scope) يُهمَل ولا يصل إليها.
+    if name == "get_my_profile":
+        return tools.get_my_profile(actor=actor)
+    if name == "get_my_manager":
+        return tools.get_my_manager(actor=actor)
+    if name == "get_my_team":
+        return tools.get_my_team(actor=actor)
+    if name == "get_organization":
+        return tools.get_organization(actor=actor)
     if name == "calculate":
         return tools.calculate(**args)
+    # الحضور: days هو المعامل الوحيد الذي يملكه النموذج، ويُقصّ
+    # داخل الأداة. الهوية تصل عبر actor كما في كل ما سبق.
+    if name in ("get_my_attendance", "get_team_attendance"):
+        days = args.get("days", 7)
+        if name == "get_my_attendance":
+            return tools.get_my_attendance(days=days, actor=actor)
+        return tools.get_team_attendance(days=days, actor=actor)
+    if name == "list_sites":
+        return tools.list_sites(actor=actor)
     return {"error": f"أداة غير معروفة: {name}"}
 
 
@@ -423,6 +548,8 @@ def run_agent(
     trace = []
     sources = []
     total_tokens = 0
+    # أدوات الكتابة التي نجحت فعلاً — لا التي استُدعيت فحسب
+    succeeded_writes = []
 
     for step in range(MAX_STEPS):
         msg, tokens = _call_llm(messages)
@@ -433,7 +560,7 @@ def run_agent(
         if not calls:
             answer, corrected = action_guard.verify(
                 msg.get("content", ""),
-                [t["tool"] for t in trace],
+                succeeded_writes,
                 WRITE_TOOLS,
             )
             log.info(
@@ -461,6 +588,10 @@ def run_agent(
                     sources.extend(result["results"])
                 if name in WRITE_TOOLS:
                     log.warning("عملية كتابة: %s | %s | النتيجة: %s", name, args, result)
+                    if _write_succeeded(name, result):
+                        succeeded_writes.append(name)
+                    else:
+                        log.info("أداة كتابة لم تنجح: %s — لن تسند ادّعاء تنفيذ", name)
             except guardrails.GuardrailViolation as e:
                 log.warning("رُفض استدعاء الأداة %s: %s", name, e)
                 result = {"error": str(e)}

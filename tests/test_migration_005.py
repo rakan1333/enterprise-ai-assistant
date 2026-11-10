@@ -280,9 +280,15 @@ def test_backfill_helper_on_pre005_database_is_noop(tmp_path):
 # ---------- الترتيب والفهارس ----------
 
 def test_migration_order_is_stable(tmp_path):
+    """الترتيب أبجدي، و005 قبل ما يليها.
+
+    كان هذا الاختبار يثبّت 005 كآخر هجرة، فكسرته 006. الثبات
+    المقصود هو ألّا يتغيّر *موضع* هجرة مطبَّقة، لا ألّا تُضاف
+    هجرة بعدها — فنفحص ذلك بدل الأخيرة.
+    """
     names = [n for n, _ in migrations.MIGRATIONS]
     assert names == sorted(names)
-    assert names[-1] == "005_organization_structure"
+    assert names.index("005_organization_structure") == 4
 
 
 def test_005_runs_after_core_tables(tmp_path):

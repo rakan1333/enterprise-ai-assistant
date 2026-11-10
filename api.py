@@ -13,8 +13,10 @@ import os
 import secrets
 
 import agent
+import attendance
 import auth
 import chat_adapter
+import geofence
 import guardrails
 import hybrid
 import metrics
@@ -925,3 +927,463 @@ def delete_doc(doc_hash: str, request: Request, user: dict = Depends(current_use
         kind="delete", question=doc_hash,
         actor=user, request_id=getattr(request.state, "request_id", ""),
     )
+
+
+# ===================== الحضور =====================
+#
+# نماذج الطلب تقبل الإحداثيات والدقّة **فقط**. لا حقل site_id ولا
+# inside ولا distance: غيابها من المخطّط يعني أن Pydantic يُسقطها
+# قبل أن تصل إلى المنطق، فادّعاء العميل لا يُقرأ أصلاً.
+#
+# الخصوصية بالحقل لا بالنيّة: نماذج الردّ للمدير والمسؤول لا تُعرّف
+# حقول الإحداثيات ولا الدقّة ولا عنوان الطلب ولا المسافة المحسوبة.
+# حقل غير معرَّف لا يخرج مهما حوى الصفّ.
+#
+# كاشف الوجود: السجل غير الموجود والسجل خارج النطاق يعيدان 404
+# بالنصّ نفسه حرفياً. و403 عن القدرة فقط (دور لا يكفي، أو مراجعة
+# ذاتية) — ورفض الدور ليس كشفاً: الموظف يعلم أنه ليس مديراً.
+
+NO_SUCH_RECORD = "لا يوجد سجل بهذا الرقم"
+NO_SUCH_CORRECTION = "لا يوجد طلب تصحيح بهذا الرقم"
+NEEDS_MANAGER = "هذه البيانات تتطلب صلاحية مدير"
+NEEDS_ADMIN = "إدارة المواقع تتطلب صلاحية مسؤول"
+
+
+class Reading(BaseModel):
+    """قراءة موقع من الجهاز. ثلاثة حقول لا رابع."""
+    latitude: float = Field(..., description="خط العرض كما أبلغ به الجهاز")
+    longitude: float = Field(..., description="خط الطول كما أبلغ به الجهاز")
+    accuracy_m: float = Field(..., description="نصف قطر الدقّة بالمتر")
+
+
+class CheckResult(BaseModel):
+    recorded: bool
+    accepted: bool | None = None
+    record_id: int | None = None
+    verdict: str | None = None
+    reason: str | None = None
+    site_id: str | None = None
+    site_name: str | None = None
+    distance_m: float | None = None
+    check_in_at: str | None = None
+    check_out_at: str | None = None
+    since: str | None = None
+
+
+class MyAttendanceRecord(BaseModel):
+    """سجل الموظف عن نفسه — يشمل ما أبلغ به جهازه."""
+    record_id: int
+    check_in_at: str
+    check_out_at: str | None = None
+    in_verdict: str
+    in_verdict_reason: str | None = None
+    out_verdict: str | None = None
+    out_verdict_reason: str | None = None
+    site_id: str | None = None
+    site_name: str | None = None
+    duration_minutes: int | None = None
+    counts_toward_work: bool
+    administrative: bool
+    approved_by_correction_id: int | None = None
+    in_reported_lat: float | None = None
+    in_reported_lon: float | None = None
+    in_reported_accuracy_m: float | None = None
+    in_computed_distance_m: float | None = None
+
+
+class TeamAttendanceRecord(BaseModel):
+    """سجل يراه المدير — بلا إحداثيات ولا دقّة ولا مسافة ولا IP.
+
+    المدير يحتاج أن يعرف هل حضر وأين ومتى، لا أن يتتبّع موظفه
+    بدقّة المتر. والحقول موجودة في القاعدة للتدقيق عند النزاع،
+    لا للعرض اليومي.
+    """
+    record_id: int
+    employee_id: str
+    employee_name: str | None = None
+    check_in_at: str
+    check_out_at: str | None = None
+    verdict: str
+    closure: str | None = None
+    site_name: str | None = None
+    duration_minutes: int | None = None
+    counts_toward_work: bool
+    administrative: bool
+
+
+class Totals(BaseModel):
+    verified_minutes: int
+    administrative_minutes: int
+    total_minutes: int
+    unresolved_sessions: int
+    unresolved_note: str | None = None
+
+
+class MyAttendanceResponse(BaseModel):
+    employee_id: str
+    open_session: MyAttendanceRecord | None = None
+    count: int
+    records: list[MyAttendanceRecord]
+    totals: Totals
+
+
+class TeamAttendanceResponse(BaseModel):
+    scope: str
+    count: int
+    records: list[TeamAttendanceRecord]
+    totals: Totals
+
+
+class SiteOut(BaseModel):
+    site_id: str
+    name: str
+    latitude: float
+    longitude: float
+    radius_m: int
+    department_id: str | None = None
+    is_active: bool
+
+
+class SitesResponse(BaseModel):
+    count: int
+    sites: list[SiteOut]
+
+
+class NewSite(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    latitude: float
+    longitude: float
+    radius_m: int = 150
+    department_id: str | None = None
+
+
+class SitePatch(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    latitude: float | None = None
+    longitude: float | None = None
+    radius_m: int | None = None
+    department_id: str | None = None
+
+
+class NewCorrection(BaseModel):
+    kind: str
+    requested_change: str = ""
+    reason: str = ""
+    record_id: int | None = None
+    requested_check_in_at: str | None = None
+    requested_check_out_at: str | None = None
+
+
+class CorrectionCreated(BaseModel):
+    created: bool
+    correction_id: int | None = None
+    status: str | None = None
+    reason: str | None = None
+
+
+class CorrectionOut(BaseModel):
+    correction_id: int
+    employee_id: str
+    employee_name: str | None = None
+    record_id: int | None = None
+    kind: str
+    requested_change: str | None = None
+    reason: str | None = None
+    status: str
+    created_at: str | None = None
+    requested_check_in_at: str | None = None
+    requested_check_out_at: str | None = None
+
+
+class PendingCorrections(BaseModel):
+    scope: str
+    count: int
+    corrections: list[CorrectionOut]
+
+
+class ReviewCorrection(BaseModel):
+    decision: str
+    note: str = ""
+
+
+class ReviewResult(BaseModel):
+    reviewed: bool
+    correction_id: int | None = None
+    status: str | None = None
+    decided_at: str | None = None
+    reason: str | None = None
+
+
+def _site_names(path=None) -> dict:
+    return {s["site_id"]: s["name"] for s in attendance.sites(active_only=False)}
+
+
+def _mine(row: dict, names: dict) -> MyAttendanceRecord:
+    return MyAttendanceRecord(
+        record_id=row["id"],
+        check_in_at=row["check_in_at"],
+        check_out_at=row["check_out_at"],
+        in_verdict=row["in_verdict"],
+        in_verdict_reason=row["in_verdict_reason"],
+        out_verdict=row["out_verdict"],
+        out_verdict_reason=row["out_verdict_reason"],
+        site_id=row["site_id"],
+        site_name=names.get(row["site_id"]),
+        duration_minutes=attendance.record_minutes(row),
+        counts_toward_work=attendance.counts_toward_work(row),
+        administrative=row["in_verdict"] == attendance.VERDICT_MANUALLY_ADDED
+        or row["out_verdict"] == attendance.VERDICT_CORRECTION_CLOSED,
+        approved_by_correction_id=row.get("corrected_by_correction_id"),
+        in_reported_lat=row["in_reported_lat"],
+        in_reported_lon=row["in_reported_lon"],
+        in_reported_accuracy_m=row["in_reported_accuracy_m"],
+        in_computed_distance_m=row["in_computed_distance_m"],
+    )
+
+
+def _theirs(row: dict, names: dict, who: dict) -> TeamAttendanceRecord:
+    return TeamAttendanceRecord(
+        record_id=row["id"],
+        employee_id=row["employee_id"],
+        employee_name=who.get(row["employee_id"]),
+        check_in_at=row["check_in_at"],
+        check_out_at=row["check_out_at"],
+        verdict=row["in_verdict"],
+        closure=row["out_verdict"],
+        site_name=names.get(row["site_id"]),
+        duration_minutes=attendance.record_minutes(row),
+        counts_toward_work=attendance.counts_toward_work(row),
+        administrative=row["in_verdict"] == attendance.VERDICT_MANUALLY_ADDED
+        or row["out_verdict"] == attendance.VERDICT_CORRECTION_CLOSED,
+    )
+
+
+def _actor_id(user: dict) -> str:
+    employee_id = (user.get("employee_id") or "").strip()
+    if not employee_id:
+        raise HTTPException(status_code=403, detail="حسابك غير مرتبط بسجل موظف")
+    return employee_id
+
+
+def _attendance_guard(request: Request, user: dict) -> None:
+    try:
+        ratelimit.attendance_limiter.check(ratelimit.client_key(request, user))
+    except ratelimit.RateLimitExceeded as e:
+        raise HTTPException(status_code=429, detail=str(e),
+                            headers={"Retry-After": str(e.retry_after)}) from None
+
+
+@app.post("/attendance/check-in", response_model=CheckResult, tags=["الحضور"])
+def attendance_check_in(body: Reading, request: Request,
+                        user: dict = Depends(current_user)):
+    """تسجيل حضور. الفاعل يسجّل لنفسه حصراً — لا معرّف موظف في الجسم."""
+    employee_id = _actor_id(user)
+    _attendance_guard(request, user)
+
+    result = attendance.check_in(
+        employee_id, body.latitude, body.longitude, body.accuracy_m,
+        request_ip=(request.client.host if request.client else ""),
+    )
+    metrics.record(kind="check_in", question=result.get("verdict", ""),
+                   outcome="accepted" if result.get("accepted") else "refused",
+                   actor=user, request_id=getattr(request.state, "request_id", ""))
+    return CheckResult(**result)
+
+
+@app.post("/attendance/check-out", response_model=CheckResult, tags=["الحضور"])
+def attendance_check_out(body: Reading, request: Request,
+                         user: dict = Depends(current_user)):
+    employee_id = _actor_id(user)
+    _attendance_guard(request, user)
+
+    result = attendance.check_out(
+        employee_id, body.latitude, body.longitude, body.accuracy_m,
+        request_ip=(request.client.host if request.client else ""),
+    )
+    metrics.record(kind="check_out", question=result.get("verdict", ""),
+                   outcome="recorded" if result.get("recorded") else "refused",
+                   actor=user, request_id=getattr(request.state, "request_id", ""))
+    return CheckResult(**result)
+
+
+@app.get("/me/attendance", response_model=MyAttendanceResponse, tags=["الحضور"])
+def my_attendance(request: Request, start: str = "", end: str = "",
+                  user: dict = Depends(current_user)):
+    """سجل الموظف عن نفسه، ومعه حالة الجلسة المفتوحة.
+
+    الحالة داخل الردّ لا في نقطة مستقلة: الواجهة تحتاجها لترسم زرّ
+    «حضور» أو «انصراف»، وجلبها مع السجل نداء واحد — كما تفعل
+    /me/leave التي تعيد رصيداً مركّباً.
+    """
+    employee_id = _actor_id(user)
+    try:
+        rows = attendance.records_for([employee_id], start=start, end=end)
+    except attendance.AttendanceTimeError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
+
+    names = _site_names()
+    openrow = attendance.open_session(employee_id)
+    return MyAttendanceResponse(
+        employee_id=employee_id,
+        open_session=_mine(openrow, names) if openrow else None,
+        count=len(rows),
+        records=[_mine(r, names) for r in rows],
+        totals=Totals(**attendance.summarize(rows)),
+    )
+
+
+@app.get("/team/attendance", response_model=TeamAttendanceResponse, tags=["الحضور"])
+def team_attendance(request: Request, start: str = "", end: str = "",
+                    user: dict = Depends(current_user)):
+    if not auth.is_elevated(user):
+        raise HTTPException(status_code=403, detail=NEEDS_MANAGER)
+
+    scope_ids = tools.attendance_scope(user)
+    try:
+        rows = attendance.records_for(scope_ids, start=start, end=end)
+    except attendance.AttendanceTimeError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
+
+    who = attendance.employee_names({r["employee_id"] for r in rows})
+    return TeamAttendanceResponse(
+        scope="org" if scope_ids is None else "team",
+        count=len(rows),
+        records=[_theirs(r, _site_names(), who) for r in rows],
+        totals=Totals(**attendance.summarize(rows)),
+    )
+
+
+@app.get("/sites", response_model=SitesResponse, tags=["الحضور"])
+def list_sites(user: dict = Depends(current_user)):
+    """المواقع النشطة للجميع، والمعطّلة للمسؤول.
+
+    إحداثيات موقع العمل ليست بياناً شخصياً، والموظف يحتاج أن يعرف
+    أين يسجّل.
+    """
+    rows = attendance.sites(active_only=not auth.is_admin(user))
+    return SitesResponse(count=len(rows), sites=[
+        SiteOut(site_id=s["site_id"], name=s["name"], latitude=s["latitude"],
+                longitude=s["longitude"], radius_m=s["radius_m"],
+                department_id=s["department_id"], is_active=bool(s["is_active"]))
+        for s in rows])
+
+
+@app.post("/sites", response_model=SiteOut, status_code=201, tags=["الحضور"])
+def create_site(body: NewSite, request: Request, user: dict = Depends(current_user)):
+    if not auth.is_admin(user):
+        raise HTTPException(status_code=403, detail=NEEDS_ADMIN)
+    try:
+        s = attendance.create_site(body.name, body.latitude, body.longitude,
+                                   body.radius_m, body.department_id)
+    except geofence.GeofenceError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
+    metrics.record(kind="site_create", question=body.name, actor=user,
+                   request_id=getattr(request.state, "request_id", ""))
+    return SiteOut(site_id=s["site_id"], name=s["name"], latitude=s["latitude"],
+                   longitude=s["longitude"], radius_m=s["radius_m"],
+                   department_id=s["department_id"], is_active=bool(s["is_active"]))
+
+
+@app.patch("/sites/{site_id}", response_model=SiteOut, tags=["الحضور"])
+def patch_site(site_id: str, body: SitePatch, user: dict = Depends(current_user)):
+    if not auth.is_admin(user):
+        raise HTTPException(status_code=403, detail=NEEDS_ADMIN)
+    try:
+        s = attendance.update_site(site_id, body.name, body.latitude, body.longitude,
+                                   body.radius_m, body.department_id)
+    except geofence.GeofenceError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
+    if s is None:
+        raise HTTPException(status_code=404, detail="لا يوجد موقع بهذا الرقم")
+    return SiteOut(site_id=s["site_id"], name=s["name"], latitude=s["latitude"],
+                   longitude=s["longitude"], radius_m=s["radius_m"],
+                   department_id=s["department_id"], is_active=bool(s["is_active"]))
+
+
+@app.post("/sites/{site_id}/deactivate", response_model=SiteOut, tags=["الحضور"])
+def deactivate_site(site_id: str, user: dict = Depends(current_user)):
+    if not auth.is_admin(user):
+        raise HTTPException(status_code=403, detail=NEEDS_ADMIN)
+    s = attendance.set_site_active(site_id, False)
+    if s is None:
+        raise HTTPException(status_code=404, detail="لا يوجد موقع بهذا الرقم")
+    return SiteOut(site_id=s["site_id"], name=s["name"], latitude=s["latitude"],
+                   longitude=s["longitude"], radius_m=s["radius_m"],
+                   department_id=s["department_id"], is_active=bool(s["is_active"]))
+
+
+@app.post("/attendance/corrections", response_model=CorrectionCreated,
+          tags=["الحضور"])
+def create_correction(body: NewCorrection, request: Request,
+                      user: dict = Depends(current_user)):
+    """طلب تصحيح على سجل الفاعل. الملكية تُفحص في الطبقة الأدنى."""
+    employee_id = _actor_id(user)
+
+    # السجل خارج ملكيته أو غير موجود: الردّ نفسه، فلا يُكشف وجوده.
+    if body.record_id is not None:
+        rec = attendance.record_by_id(body.record_id)
+        if rec is None or (rec["employee_id"] or "").strip() != employee_id:
+            raise HTTPException(status_code=404, detail=NO_SUCH_RECORD)
+
+    result = attendance.create_correction(
+        employee_id, body.kind, body.requested_change, body.reason,
+        record_id=body.record_id,
+        requested_check_in_at=body.requested_check_in_at,
+        requested_check_out_at=body.requested_check_out_at,
+    )
+    if not result["created"]:
+        raise HTTPException(status_code=400, detail=result["reason"])
+    metrics.record(kind="correction", question=body.kind, actor=user,
+                   request_id=getattr(request.state, "request_id", ""))
+    return CorrectionCreated(**result)
+
+
+@app.get("/attendance/corrections/pending", response_model=PendingCorrections,
+         tags=["الحضور"])
+def pending_corrections(user: dict = Depends(current_user)):
+    if not auth.is_elevated(user):
+        raise HTTPException(status_code=403, detail=NEEDS_MANAGER)
+
+    scope_ids = tools.attendance_scope(user)
+    rows = attendance.pending_corrections(scope_ids)
+    return PendingCorrections(
+        scope="org" if scope_ids is None else "team",
+        count=len(rows),
+        corrections=[CorrectionOut(
+            correction_id=r["id"], employee_id=r["employee_id"],
+            employee_name=r.get("employee_name"), record_id=r["record_id"],
+            kind=r["kind"], requested_change=r["requested_change"],
+            reason=r["reason"], status=r["status"], created_at=r["created_at"],
+            requested_check_in_at=r.get("requested_check_in_at"),
+            requested_check_out_at=r.get("requested_check_out_at"),
+        ) for r in rows])
+
+
+@app.post("/attendance/corrections/{correction_id}/review",
+          response_model=ReviewResult, tags=["الحضور"])
+def review_correction(correction_id: int, body: ReviewCorrection, request: Request,
+                      user: dict = Depends(current_user)):
+    if not auth.is_elevated(user):
+        raise HTTPException(status_code=403, detail=NEEDS_MANAGER)
+
+    reviewer_id = _actor_id(user)
+    corr = attendance.correction_by_id(correction_id)
+
+    # غير موجود وخارج النطاق: الرمز والنصّ نفسهما حرفياً.
+    if corr is None or not tools._can_view(user, corr["employee_id"]):
+        raise HTTPException(status_code=404, detail=NO_SUCH_CORRECTION)
+
+    result = attendance.review_correction(correction_id, body.decision,
+                                          reviewer_id, body.note)
+    if not result["reviewed"]:
+        reason = result.get("reason", "")
+        if "مراجعة طلبك" in reason:
+            raise HTTPException(status_code=403, detail=reason)
+        if "حُسم" in reason:
+            raise HTTPException(status_code=409, detail=reason)
+        raise HTTPException(status_code=400, detail=reason)
+
+    metrics.record(kind="correction_review", question=str(correction_id),
+                   outcome=result["status"], actor=user,
+                   request_id=getattr(request.state, "request_id", ""))
+    return ReviewResult(**{k: v for k, v in result.items() if k != "reviewed_by"})
